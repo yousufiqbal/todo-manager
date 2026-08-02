@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { listsState, loadLists, renameList, removeList } from '$lib/stores/lists.svelte.js';
 	import { todosState, loadTodos, undoState, undoRemoveTodo, type Todo } from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
@@ -7,12 +9,24 @@
 	import TodoInput from '$lib/components/TodoInput.svelte';
 	import DateCard from '$lib/components/DateCard.svelte';
 
-	onMount(() => {
-		loadLists();
+	onMount(async () => {
+		await loadLists();
+		const urlListId = page.url.searchParams.get('list');
+		if (urlListId && listsState.items.some((l) => l.id === urlListId)) {
+			listsState.selectedId = urlListId;
+		}
 	});
 
 	$effect(() => {
 		loadTodos(listsState.selectedId);
+	});
+
+	$effect(() => {
+		const id = listsState.selectedId;
+		if (!id || page.url.searchParams.get('list') === id) return;
+		const url = new URL(page.url);
+		url.searchParams.set('list', id);
+		goto(`${url.pathname}${url.search}`, { replaceState: true, keepFocus: true, noScroll: true });
 	});
 
 	let grouped = $derived.by(() => {
@@ -97,10 +111,10 @@
 
 	<main>
 		<header>
-			<div>
+			<div class="title-row">
 				<h1>{selectedList ? selectedList.name : 'Select a list'}</h1>
-				{#if selectedList}
-					<p class="subheading">Only {selectedList.pending_count} pending</p>
+				{#if selectedList && selectedList.pending_count > 0}
+					<span class="count-pill">{selectedList.pending_count}</span>
 				{/if}
 			</div>
 			<div class="header-actions">
@@ -230,16 +244,16 @@
 		margin-bottom: var(--space-1);
 	}
 
+	.title-row {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
 	h1 {
 		font-size: 20px;
 		font-weight: 600;
 		margin: 0;
-	}
-
-	.subheading {
-		margin: 2px 0 0;
-		font-size: 13px;
-		color: var(--fg-muted);
 	}
 
 	.header-actions {

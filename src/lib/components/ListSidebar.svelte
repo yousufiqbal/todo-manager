@@ -43,7 +43,10 @@
 <aside class="sidebar" class:open>
 	<div class="brand">
 		<svg class="icon logo" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-		<span>Todo Manager</span>
+		<div class="brand-text">
+			<span class="brand-title">Todo Manager</span>
+			<span class="brand-subtitle">by Yousuf Iqbal</span>
+		</div>
 	</div>
 
 	<div class="section-header">
@@ -119,13 +122,28 @@
 		align-items: center;
 		gap: var(--space-2);
 		padding: 0 var(--space-2);
+	}
+
+	.brand-text {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.3;
+	}
+
+	.brand-title {
 		font-weight: 600;
 		font-size: 15px;
 	}
 
+	.brand-subtitle {
+		font-weight: 400;
+		font-size: 11px;
+		color: var(--fg-subtle);
+	}
+
 	.logo {
-		width: 18px;
-		height: 18px;
+		width: 28px;
+		height: 28px;
 		stroke-width: 2.2;
 	}
 
@@ -212,15 +230,7 @@
 	}
 
 	.count-pill {
-		flex-shrink: 0;
 		margin-left: auto;
-		font-size: 11px;
-		font-weight: 600;
-		line-height: 1;
-		color: var(--fg-muted);
-		background: var(--bg-hover);
-		border-radius: 999px;
-		padding: 3px 7px;
 	}
 
 	li.active .count-pill {

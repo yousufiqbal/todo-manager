@@ -10,9 +10,10 @@
 
 	function formatDate(d: string) {
 		const dt = new Date(`${d}T00:00:00`);
-		const datePart = dt.toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' });
-		const weekday = dt.toLocaleDateString(undefined, { weekday: 'long' });
-		return `${datePart}, ${weekday}`;
+		const day = String(dt.getDate()).padStart(2, '0');
+		const month = dt.toLocaleDateString('en-US', { month: 'long' });
+		const weekday = dt.toLocaleDateString('en-US', { weekday: 'long' });
+		return `${day} ${month} ${dt.getFullYear()}, ${weekday}`;
 	}
 
 	function isToday(d: string) {
@@ -31,9 +32,8 @@
 		editingId = null;
 	}
 
-	function handleMoveDate(id: string, e: Event & { currentTarget: HTMLInputElement }) {
-		const newDate = e.currentTarget.value;
-		if (newDate) moveTodoDate(id, newDate);
+	function moveToToday(id: string) {
+		moveTodoDate(id, new Date().toISOString().slice(0, 10));
 		openOptionsId = null;
 	}
 
@@ -88,10 +88,10 @@
 					</button>
 					{#if openOptionsId === todo.id}
 						<div class="popover card">
-							<label class="move-label">
-								Move to date
-								<input type="date" value={todo.date} onchange={(e) => handleMoveDate(todo.id, e)} />
-							</label>
+							<button class="popover-item" onclick={() => moveToToday(todo.id)} disabled={isToday(todo.date)}>
+								<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
+								Move to Today
+							</button>
 							<button class="popover-delete" onclick={() => removeTodo(todo.id)}>
 								<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
 								Delete todo
@@ -106,15 +106,17 @@
 
 <style>
 	.date-card {
-		padding: var(--space-4);
+		padding: var(--space-3);
 	}
 
 	h3 {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		margin: 0 0 var(--space-3);
-		font-size: 15px;
+		margin: 0 calc(-1 * var(--space-3)) var(--space-2);
+		padding: 0 var(--space-3) var(--space-2);
+		border-bottom: 1px solid var(--border);
+		font-size: 14px;
 		color: var(--fg);
 		font-weight: 600;
 	}
@@ -128,6 +130,7 @@
 	}
 
 	.today-badge {
+		margin-left: auto;
 		font-size: 11px;
 		font-weight: 600;
 		color: #fff;
@@ -150,7 +153,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: 7px var(--space-2);
+		padding: 4px var(--space-2);
 		border-radius: var(--radius-sm);
 		position: relative;
 		transition: background-color 150ms var(--ease);
@@ -224,7 +227,7 @@
 		text-align: left;
 		background: transparent;
 		border: none;
-		padding: 4px 0;
+		padding: 2px 0;
 		color: inherit;
 		font: inherit;
 		cursor: text;
@@ -244,12 +247,4 @@
 		position: relative;
 	}
 
-	.move-label {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		font-size: 12px;
-		color: var(--fg-muted);
-		padding: 4px 4px 0;
-	}
 </style>

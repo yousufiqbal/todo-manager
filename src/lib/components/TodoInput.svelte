@@ -9,6 +9,7 @@
 
 	let title = $state('');
 	let date = $state(todayStr());
+	let dateInputEl: HTMLInputElement | undefined = $state();
 
 	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
@@ -16,13 +17,26 @@
 		addTodo(listId, title.trim(), date);
 		title = '';
 	}
+
+	function openDatePicker() {
+		if (!dateInputEl) return;
+		if (typeof dateInputEl.showPicker === 'function') dateInputEl.showPicker();
+		else dateInputEl.focus();
+	}
 </script>
 
 <form class="card input-row" onsubmit={handleSubmit}>
 	<svg class="icon plus-icon" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
 	<input type="text" placeholder="Add a todo…" bind:value={title} />
-	<input type="date" bind:value={date} />
-	<button class="btn" type="submit" disabled={!listId}>Add</button>
+
+	<button type="button" class="btn-ghost date-trigger" onclick={openDatePicker} aria-label="Pick date">
+		<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
+	</button>
+	<input type="date" class="date-input" bind:value={date} bind:this={dateInputEl} />
+
+	<button class="btn add-btn" type="submit" disabled={!listId} aria-label="Add todo">
+		<svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M13 6l6 6-6 6" /></svg>
+	</button>
 </form>
 
 <style>
@@ -47,32 +61,29 @@
 		box-shadow: none;
 	}
 
-	.input-row input[type='date'] {
+	.date-input {
 		color: var(--fg-muted);
 	}
 
+	.date-trigger {
+		display: none;
+	}
+
+	.add-btn {
+		padding: 9px 12px;
+	}
+
 	@media (max-width: 480px) {
-		.input-row {
-			flex-wrap: wrap;
+		.date-input {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			opacity: 0;
+			pointer-events: none;
 		}
 
-		.plus-icon {
-			display: none;
-		}
-
-		.input-row input[type='text'] {
-			flex-basis: 100%;
-			order: 1;
-		}
-
-		.input-row input[type='date'] {
-			flex: 1;
-			min-width: 0;
-			order: 2;
-		}
-
-		.input-row button {
-			order: 3;
+		.date-trigger {
+			display: inline-flex;
 		}
 	}
 </style>
