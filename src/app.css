@@ -334,15 +334,13 @@ input[type='date']:focus-visible {
 .modal h2 {
 	font-size: 16px;
 	font-weight: 600;
-	margin: var(--space-3) 0 6px;
+	margin: 0 0 var(--space-4);
 }
 
-.modal > p {
-	margin: 0 0 var(--space-4);
-	font-size: 13px;
-	color: var(--fg-muted);
-	line-height: 1.5;
+.modal-icon + h2 {
+	margin-top: var(--space-3);
 }
+
 
 .modal-icon {
 	width: 36px;

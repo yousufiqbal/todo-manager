@@ -114,7 +114,6 @@
 		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1">
 			<form onsubmit={submitAdd}>
 				<h2 id="add-title">New list</h2>
-				<p>Give your list a name.</p>
 				<label class="field-label">
 					List name
 					<input type="text" bind:value={newListName} placeholder="e.g. Work" autocomplete="off" use:autofocus />

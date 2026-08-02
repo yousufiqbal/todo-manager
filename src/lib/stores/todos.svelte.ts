@@ -24,6 +24,17 @@ let pendingDeleteIndex = -1;
 let pendingDeleteTimeout: ReturnType<typeof setTimeout> | null = null;
 let latestRequestedListId: string | null = null;
 
+/**
+ * Cache is a plain (non-reactive) Map, but todosState.items is a Svelte 5
+ * reactive $state proxy. Relying on the two sharing an object reference after
+ * mutation is fragile, so every mutation explicitly snapshots the current
+ * (proxied) state into a plain array and writes it into the cache for the
+ * list it belongs to.
+ */
+function syncCache(listId: string) {
+	todosCache.set(listId, $state.snapshot(todosState.items) as Todo[]);
+}
+
 export function hydrateAllTodos(todosByList: Record<string, Todo[]>, selectedListId: string | null) {
 	for (const [listId, todos] of Object.entries(todosByList)) {
 		todosCache.set(listId, todos);
@@ -47,10 +58,9 @@ export async function loadTodos(listId: string | null) {
 	const cached = todosCache.get(listId);
 	if (cached) {
 		// Trust the cache once populated — every local mutation keeps it in sync
-		// (same array reference), and this is a single-device app so nothing
-		// else can change server data underneath us. Re-fetching here would
-		// just race with in-flight optimistic writes and flicker stale data
-		// back in.
+		// explicitly, and this is a single-device app so nothing else can
+		// change server data underneath us. Re-fetching here would just race
+		// with in-flight optimistic writes and flicker stale data back in.
 		todosState.items = cached;
 		todosState.loadedForListId = listId;
 		return;
@@ -72,6 +82,7 @@ export function addTodo(listId: string, title: string, date: string) {
 	const tempId = `temp-${crypto.randomUUID()}`;
 	const todo: Todo = { id: tempId, list_id: listId, title, done: 0, date, created_at: Date.now() };
 	todosState.items.push(todo);
+	syncCache(listId);
 	bumpListPendingCount(listId, 1);
 
 	fetch('/api/todos', {
@@ -84,10 +95,11 @@ export function addTodo(listId: string, title: string, date: string) {
 			const created: Todo = await res.json();
 			const idx = todosState.items.findIndex((t) => t.id === tempId);
 			if (idx !== -1) todosState.items[idx] = created;
+			syncCache(listId);
 		})
 		.catch(() => {
 			todosState.items = todosState.items.filter((t) => t.id !== tempId);
-			todosCache.set(listId, todosState.items);
+			syncCache(listId);
 			bumpListPendingCount(listId, -1);
 		});
 }
@@ -95,9 +107,11 @@ export function addTodo(listId: string, title: string, date: string) {
 function patchTodo(id: string, patch: Partial<Todo>, rollbackFields: (keyof Todo)[]) {
 	const todo = todosState.items.find((t) => t.id === id);
 	if (!todo) return;
+	const listId = todo.list_id;
 	const prev: Partial<Todo> = {};
 	for (const key of rollbackFields) (prev as any)[key] = todo[key];
 	Object.assign(todo, patch);
+	syncCache(listId);
 
 	fetch(`/api/todos/${id}`, {
 		method: 'PATCH',
@@ -105,10 +119,11 @@ function patchTodo(id: string, patch: Partial<Todo>, rollbackFields: (keyof Todo
 		body: JSON.stringify(patch)
 	})
 		.then((res) => {
-			if (!res.ok) Object.assign(todo, prev);
+			if (!res.ok) throw new Error('failed');
 		})
 		.catch(() => {
 			Object.assign(todo, prev);
+			syncCache(listId);
 		});
 }
 
@@ -118,8 +133,10 @@ export function toggleTodo(id: string, done: boolean) {
 	const wasDone = !!todo.done;
 	if (wasDone === done) return;
 
+	const listId = todo.list_id;
 	todo.done = done ? 1 : 0;
-	bumpListPendingCount(todo.list_id, done ? -1 : 1);
+	syncCache(listId);
+	bumpListPendingCount(listId, done ? -1 : 1);
 
 	fetch(`/api/todos/${id}`, {
 		method: 'PATCH',
@@ -131,7 +148,8 @@ export function toggleTodo(id: string, done: boolean) {
 		})
 		.catch(() => {
 			todo.done = wasDone ? 1 : 0;
-			bumpListPendingCount(todo.list_id, done ? 1 : -1);
+			syncCache(listId);
+			bumpListPendingCount(listId, done ? 1 : -1);
 		});
 }
 
@@ -163,6 +181,7 @@ export function removeTodo(id: string) {
 	const idx = todosState.items.findIndex((t) => t.id === id);
 	if (idx === -1) return;
 	const [removed] = todosState.items.splice(idx, 1);
+	syncCache(removed.list_id);
 	if (!removed.done) bumpListPendingCount(removed.list_id, -1);
 
 	pendingDeleteId = id;
@@ -179,6 +198,7 @@ export function undoRemoveTodo() {
 	const todo = undoState.todo;
 	const idx = Math.min(pendingDeleteIndex, todosState.items.length);
 	todosState.items.splice(idx, 0, todo);
+	syncCache(todo.list_id);
 	if (!todo.done) bumpListPendingCount(todo.list_id, 1);
 
 	pendingDeleteId = null;

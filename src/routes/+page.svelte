@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import { replaceState } from '$app/navigation';
 	import { listsState, hydrateLists, renameList, removeList } from '$lib/stores/lists.svelte.js';
 	import { todosState, hydrateAllTodos, loadTodos, undoState, undoRemoveTodo, type Todo } from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
@@ -27,8 +26,9 @@
 		const url = new URL(window.location.href);
 		if (url.searchParams.get('list') === id) return;
 		url.searchParams.set('list', id);
-		// Shallow URL update (not `goto`) so switching lists never re-runs +page.server.ts's load.
-		replaceState(url, {});
+		// Raw history API (not SvelteKit's `goto`/`replaceState`) so switching lists never
+		// re-runs +page.server.ts's load, and has no dependency on router init timing.
+		window.history.replaceState(window.history.state, '', url);
 	});
 
 	let grouped = $derived.by(() => {
@@ -37,7 +37,7 @@
 			if (!map.has(todo.date)) map.set(todo.date, []);
 			map.get(todo.date)!.push(todo);
 		}
-		return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+		return [...map.entries()].sort(([a], [b]) => b.localeCompare(a));
 	});
 
 	let selectedList = $derived(listsState.items.find((l) => l.id === listsState.selectedId));
@@ -225,7 +225,6 @@
 		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="rename-title" tabindex="-1">
 			<form onsubmit={submitRename}>
 				<h2 id="rename-title">Rename list</h2>
-				<p>Choose a new name for this list.</p>
 				<label class="field-label">
 					List name
 					<input type="text" bind:value={renameValue} autocomplete="off" use:autofocus />
@@ -246,7 +245,6 @@
 				<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
 			</div>
 			<h2 id="delete-title">Delete "{selectedList.name}"?</h2>
-			<p>This permanently deletes the list and all its todos. This can't be undone.</p>
 			<label class="field-label">
 				<span>Type <strong>delete</strong> to confirm</span>
 				<input
