@@ -8,6 +8,16 @@
 	let showAddModal = $state(false);
 	let newListName = $state('');
 
+	let listsLoadingVisible = $state(false);
+	$effect(() => {
+		if (listsState.loaded) {
+			listsLoadingVisible = false;
+			return;
+		}
+		const t = setTimeout(() => (listsLoadingVisible = true), 200);
+		return () => clearTimeout(t);
+	});
+
 	function handleSelect(id: string) {
 		selectList(id);
 		onClose?.();
@@ -42,7 +52,9 @@
 
 <aside class="sidebar" class:open>
 	<div class="brand">
-		<svg class="icon logo" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+		<div class="logo-chip">
+			<svg class="icon logo" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+		</div>
 		<div class="brand-text">
 			<span class="brand-title">Todo Manager</span>
 			<span class="brand-subtitle">by Yousuf Iqbal</span>
@@ -56,25 +68,35 @@
 		</button>
 	</div>
 
-	<ul>
-		{#each listsState.items as list (list.id)}
-			<li class:active={list.id === listsState.selectedId}>
-				<button class="list-btn" onclick={() => handleSelect(list.id)}>
-					<span class="list-name">{list.name}</span>
-					{#if list.pending_count > 0}
-						<span class="count-pill">{list.pending_count}</span>
-					{/if}
-				</button>
-			</li>
-		{:else}
-			<li class="empty">No lists yet</li>
-		{/each}
-	</ul>
+	{#if !listsState.loaded}
+		{#if listsLoadingVisible}
+			<div class="sidebar-loading">
+				<div class="spinner"></div>
+			</div>
+		{/if}
+	{:else}
+		<ul>
+			{#each listsState.items as list (list.id)}
+				<li class:active={list.id === listsState.selectedId}>
+					<button class="list-btn" onclick={() => handleSelect(list.id)}>
+						<span class="list-name">{list.name}</span>
+						{#if list.pending_count > 0}
+							<span class="count-pill">{list.pending_count}</span>
+						{/if}
+					</button>
+				</li>
+			{:else}
+				<li class="empty">No lists yet</li>
+			{/each}
+		</ul>
+	{/if}
 
-	<button class="logout" onclick={handleLogout}>
-		<svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
-		Log out
-	</button>
+	<div class="footer">
+		<button class="logout" onclick={handleLogout}>
+			<svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+			Log out
+		</button>
+	</div>
 </aside>
 
 <svelte:window
@@ -108,7 +130,7 @@
 	.sidebar {
 		width: 240px;
 		flex-shrink: 0;
-		background: var(--bg);
+		background: var(--bg-elevated);
 		border-right: 1px solid var(--border);
 		padding: var(--space-5) var(--space-3);
 		display: flex;
@@ -120,8 +142,21 @@
 	.brand {
 		display: flex;
 		align-items: center;
-		gap: var(--space-2);
-		padding: 0 var(--space-2);
+		gap: var(--space-3);
+		margin: 0 calc(-1 * var(--space-3));
+		padding: 0 var(--space-3) var(--space-4);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.logo-chip {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 36px;
+		height: 36px;
+		flex-shrink: 0;
+		border-radius: var(--radius);
+		background: var(--fg);
 	}
 
 	.brand-text {
@@ -142,9 +177,10 @@
 	}
 
 	.logo {
-		width: 28px;
-		height: 28px;
-		stroke-width: 2.2;
+		width: 18px;
+		height: 18px;
+		stroke-width: 2.4;
+		color: #fff;
 	}
 
 	.section-header {
@@ -186,8 +222,7 @@
 	}
 
 	li.active {
-		background: var(--bg-elevated);
-		box-shadow: var(--shadow-sm);
+		background: var(--bg);
 	}
 
 	li.active::before {
@@ -246,14 +281,21 @@
 		color: var(--fg);
 	}
 
+	.footer {
+		margin: 0 calc(-1 * var(--space-3));
+		padding: var(--space-3) var(--space-3) 0;
+		border-top: 1px solid var(--border);
+	}
+
 	.logout {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
+		width: 100%;
 		background: transparent;
-		border: 1px solid var(--border);
+		border: none;
 		border-radius: var(--radius-sm);
-		padding: 9px var(--space-3);
+		padding: 8px var(--space-2);
 		color: var(--fg-muted);
 		font-size: 13px;
 		font-weight: 500;
@@ -265,6 +307,13 @@
 	.logout:hover {
 		color: var(--fg);
 		background: var(--bg-hover);
+	}
+
+	.sidebar-loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: 1;
 	}
 
 	.sidebar-backdrop {

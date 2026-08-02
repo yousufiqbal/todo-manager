@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { listsState, loadLists, renameList, removeList } from '$lib/stores/lists.svelte.js';
@@ -39,6 +40,28 @@
 	});
 
 	let selectedList = $derived(listsState.items.find((l) => l.id === listsState.selectedId));
+
+	const LOADING_DELAY_MS = 200;
+
+	let listsLoadingVisible = $state(false);
+	$effect(() => {
+		if (listsState.loaded) {
+			listsLoadingVisible = false;
+			return;
+		}
+		const t = setTimeout(() => (listsLoadingVisible = true), LOADING_DELAY_MS);
+		return () => clearTimeout(t);
+	});
+
+	let todosLoadingVisible = $state(false);
+	$effect(() => {
+		if (!selectedList || todosState.loadedForListId === selectedList.id) {
+			todosLoadingVisible = false;
+			return;
+		}
+		const t = setTimeout(() => (todosLoadingVisible = true), LOADING_DELAY_MS);
+		return () => clearTimeout(t);
+	});
 
 	let sidebarOpen = $state(false);
 
@@ -143,7 +166,13 @@
 			</div>
 		</header>
 
-		{#if listsState.loaded && listsState.items.length === 0}
+		{#if !listsState.loaded}
+			{#if listsLoadingVisible}
+				<div class="loading-state">
+					<div class="spinner"></div>
+				</div>
+			{/if}
+		{:else if listsState.items.length === 0}
 			<div class="empty-state">
 				<svg class="icon" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
 				<p>No lists yet</p>
@@ -152,18 +181,30 @@
 		{:else if selectedList}
 			<TodoInput listId={selectedList.id} />
 
-			<div class="cards">
-				{#each grouped as [date, todos] (date)}
-					<DateCard {date} {todos} />
-				{/each}
-				{#if grouped.length === 0}
-					<div class="empty-state">
-						<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
-						<p>No todos yet</p>
-						<span>Add one above to get started.</span>
+			{#if todosState.loadedForListId !== selectedList.id}
+				{#if todosLoadingVisible}
+					<div class="loading-state">
+						<div class="spinner"></div>
 					</div>
 				{/if}
-			</div>
+			{:else}
+				{#key selectedList.id}
+					<div class="cards">
+						{#each grouped as [date, todos], i (date)}
+							<div in:fly|global={{ y: 10, duration: 250, delay: i * 40 }}>
+								<DateCard {date} {todos} />
+							</div>
+						{/each}
+						{#if grouped.length === 0}
+							<div class="empty-state">
+								<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
+								<p>No todos yet</p>
+								<span>Add one above to get started.</span>
+							</div>
+						{/if}
+					</div>
+				{/key}
+			{/if}
 		{/if}
 	</main>
 </div>
@@ -285,6 +326,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+	}
+
+	.loading-state {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: var(--space-6) var(--space-4);
 	}
 
 	.empty-state {
