@@ -24,6 +24,17 @@ let pendingDeleteIndex = -1;
 let pendingDeleteTimeout: ReturnType<typeof setTimeout> | null = null;
 let latestRequestedListId: string | null = null;
 
+export function hydrateAllTodos(todosByList: Record<string, Todo[]>, selectedListId: string | null) {
+	for (const [listId, todos] of Object.entries(todosByList)) {
+		todosCache.set(listId, todos);
+	}
+	latestRequestedListId = selectedListId;
+	if (selectedListId) {
+		todosState.items = todosCache.get(selectedListId) ?? [];
+		todosState.loadedForListId = selectedListId;
+	}
+}
+
 export async function loadTodos(listId: string | null) {
 	latestRequestedListId = listId;
 

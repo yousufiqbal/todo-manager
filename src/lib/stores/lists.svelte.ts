@@ -22,6 +22,12 @@ export async function loadLists() {
 	listsState.loaded = true;
 }
 
+export function hydrateLists(lists: List[], selectedId: string | null) {
+	listsState.items = lists;
+	listsState.selectedId = selectedId;
+	listsState.loaded = true;
+}
+
 export function selectList(id: string) {
 	listsState.selectedId = id;
 }

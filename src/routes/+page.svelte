@@ -1,21 +1,20 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { untrack } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
-	import { listsState, loadLists, renameList, removeList } from '$lib/stores/lists.svelte.js';
-	import { todosState, loadTodos, undoState, undoRemoveTodo, type Todo } from '$lib/stores/todos.svelte.js';
+	import { replaceState } from '$app/navigation';
+	import { listsState, hydrateLists, renameList, removeList } from '$lib/stores/lists.svelte.js';
+	import { todosState, hydrateAllTodos, loadTodos, undoState, undoRemoveTodo, type Todo } from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
 	import ListSidebar from '$lib/components/ListSidebar.svelte';
 	import TodoInput from '$lib/components/TodoInput.svelte';
 	import DateCard from '$lib/components/DateCard.svelte';
+	import type { PageData } from './$types';
 
-	onMount(async () => {
-		await loadLists();
-		const urlListId = page.url.searchParams.get('list');
-		if (urlListId && listsState.items.some((l) => l.id === urlListId)) {
-			listsState.selectedId = urlListId;
-		}
+	let { data }: { data: PageData } = $props();
+
+	untrack(() => {
+		hydrateLists(data.lists, data.selectedListId);
+		hydrateAllTodos(data.todosByList, data.selectedListId);
 	});
 
 	$effect(() => {
@@ -24,10 +23,12 @@
 
 	$effect(() => {
 		const id = listsState.selectedId;
-		if (!id || page.url.searchParams.get('list') === id) return;
-		const url = new URL(page.url);
+		if (!id || typeof window === 'undefined') return;
+		const url = new URL(window.location.href);
+		if (url.searchParams.get('list') === id) return;
 		url.searchParams.set('list', id);
-		goto(`${url.pathname}${url.search}`, { replaceState: true, keepFocus: true, noScroll: true });
+		// Shallow URL update (not `goto`) so switching lists never re-runs +page.server.ts's load.
+		replaceState(url, {});
 	});
 
 	let grouped = $derived.by(() => {
