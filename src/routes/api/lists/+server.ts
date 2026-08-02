@@ -1,0 +1,31 @@
+import { json } from '@sveltejs/kit';
+import { randomUUID } from 'node:crypto';
+import { db } from '$lib/server/db.js';
+import type { RequestHandler } from './$types';
+
+export const GET: RequestHandler = async () => {
+	const result = await db.execute(`
+		SELECT lists.*, COUNT(CASE WHEN todos.done = 0 THEN 1 END) AS pending_count
+		FROM lists
+		LEFT JOIN todos ON todos.list_id = lists.id
+		GROUP BY lists.id
+		ORDER BY lists.created_at ASC
+	`);
+	return json(result.rows);
+};
+
+export const POST: RequestHandler = async ({ request }) => {
+	const { name } = await request.json();
+	if (!name || !name.trim()) {
+		return json({ error: 'name required' }, { status: 400 });
+	}
+
+	const id = randomUUID();
+	const created_at = Date.now();
+	await db.execute({
+		sql: 'INSERT INTO lists (id, name, created_at) VALUES (?, ?, ?)',
+		args: [id, name.trim(), created_at]
+	});
+
+	return json({ id, name: name.trim(), created_at, pending_count: 0 });
+};
