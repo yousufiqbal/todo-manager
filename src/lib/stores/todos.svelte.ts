@@ -1,4 +1,5 @@
 import { bumpListPendingCount } from './lists.svelte.js';
+import { todayLocalStr } from '$lib/date.js';
 
 export interface Todo {
 	id: string;
@@ -159,6 +160,16 @@ export function editTodoTitle(id: string, title: string) {
 
 export function moveTodoDate(id: string, date: string) {
 	patchTodo(id, { date }, ['date']);
+}
+
+export function moveAllPendingToToday(listId: string) {
+	const today = todayLocalStr();
+	const pendingIds = todosState.items
+		.filter((t) => t.list_id === listId && !t.done && t.date !== today)
+		.map((t) => t.id);
+	for (const id of pendingIds) {
+		moveTodoDate(id, today);
+	}
 }
 
 function finalizePendingDelete() {

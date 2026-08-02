@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { toggleTodo, editTodoTitle, moveTodoDate, removeTodo, type Todo } from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
+	import { todayLocalStr } from '$lib/date.js';
 
 	let { date, todos }: { date: string; todos: Todo[] } = $props();
 
@@ -17,7 +18,7 @@
 	}
 
 	function isToday(d: string) {
-		return d === new Date().toISOString().slice(0, 10);
+		return d === todayLocalStr();
 	}
 
 	function startEdit(todo: Todo) {
@@ -33,7 +34,7 @@
 	}
 
 	function moveToToday(id: string) {
-		moveTodoDate(id, new Date().toISOString().slice(0, 10));
+		moveTodoDate(id, todayLocalStr());
 		openOptionsId = null;
 	}
 

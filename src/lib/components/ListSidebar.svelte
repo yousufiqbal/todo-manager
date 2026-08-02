@@ -255,8 +255,8 @@
 	}
 
 	li.active .count-pill {
-		color: #fff;
-		background: rgba(255, 255, 255, 0.2);
+		color: #fcd34d;
+		background: rgba(252, 211, 77, 0.18);
 	}
 
 	li.active .list-btn {

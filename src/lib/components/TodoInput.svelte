@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { addTodo } from '$lib/stores/todos.svelte.js';
+	import { todayLocalStr } from '$lib/date.js';
 
 	let { listId }: { listId: string | undefined } = $props();
 
-	function todayStr() {
-		return new Date().toISOString().slice(0, 10);
-	}
-
 	let title = $state('');
-	let date = $state(todayStr());
+	let date = $state(todayLocalStr());
 	let dateInputEl: HTMLInputElement | undefined = $state();
 
 	function handleSubmit(e: SubmitEvent) {
