@@ -84,7 +84,7 @@
 		width: 40px;
 		height: 40px;
 		border-radius: var(--radius);
-		background: var(--fg);
+		background: var(--fg-solid);
 		display: flex;
 		align-items: center;
 		justify-content: center;

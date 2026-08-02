@@ -158,7 +158,7 @@
 		height: 36px;
 		flex-shrink: 0;
 		border-radius: var(--radius);
-		background: var(--fg);
+		background: var(--fg-solid);
 	}
 
 	.brand-text {
@@ -230,7 +230,7 @@
 	}
 
 	li.active {
-		background: #3a3a3a;
+		background: var(--fg-solid);
 		box-shadow: var(--shadow-sm);
 	}
 

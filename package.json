@@ -10,8 +10,7 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"db:init": "node scripts/init-db.js",
-		"hash-password": "node scripts/hash-password.js"
+		"db:init": "node scripts/init-db.js"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-vercel": "^6.3.4",
@@ -24,7 +23,6 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
-		"@libsql/client": "^0.17.4",
-		"bcryptjs": "^3.0.3"
+		"@libsql/client": "^0.17.4"
 	}
 }

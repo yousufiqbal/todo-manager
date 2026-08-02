@@ -1,8 +1,15 @@
 import { json } from '@sveltejs/kit';
-import bcrypt from 'bcryptjs';
+import { timingSafeEqual } from 'node:crypto';
 import { env } from '$env/dynamic/private';
 import { createSessionToken, setSessionCookie } from '$lib/server/auth.js';
 import type { RequestHandler } from './$types';
+
+function safeEqual(a: string, b: string) {
+	const bufA = Buffer.from(a);
+	const bufB = Buffer.from(b);
+	if (bufA.length !== bufB.length) return false;
+	return timingSafeEqual(bufA, bufB);
+}
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	const { email, password } = await request.json();
@@ -11,12 +18,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		return json({ error: 'email and password required' }, { status: 400 });
 	}
 
-	if (email !== env.ADMIN_EMAIL) {
-		return json({ error: 'invalid credentials' }, { status: 401 });
-	}
-
-	const valid = await bcrypt.compare(password, env.ADMIN_PASSWORD_HASH);
-	if (!valid) {
+	if (!safeEqual(email, env.ADMIN_EMAIL) || !safeEqual(password, env.ADMIN_PASSWORD)) {
 		return json({ error: 'invalid credentials' }, { status: 401 });
 	}
 

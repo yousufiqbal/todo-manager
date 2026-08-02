@@ -373,7 +373,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		background: var(--fg);
+		background: var(--fg-solid);
 		color: #fff;
 		padding: 12px var(--space-2) 12px var(--space-4);
 		border-radius: var(--radius);

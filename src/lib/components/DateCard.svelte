@@ -134,7 +134,7 @@
 		font-size: 11px;
 		font-weight: 600;
 		color: #fff;
-		background: var(--fg);
+		background: var(--fg-solid);
 		padding: 2px 8px;
 		border-radius: 999px;
 		letter-spacing: 0.02em;
@@ -208,8 +208,8 @@
 	}
 
 	.checkbox input:checked + .checkbox-box {
-		background: var(--fg);
-		border-color: var(--fg);
+		background: var(--fg-solid);
+		border-color: var(--fg-solid);
 	}
 
 	.checkbox input:checked + .checkbox-box .check-icon {
