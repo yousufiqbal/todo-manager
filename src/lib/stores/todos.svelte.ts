@@ -15,23 +15,40 @@ export const todosState = $state<{ items: Todo[]; loadedForListId: string | null
 });
 
 const UNDO_WINDOW_MS = 5000;
+const todosCache = new Map<string, Todo[]>();
 
 export const undoState = $state<{ todo: Todo | null }>({ todo: null });
 
 let pendingDeleteId: string | null = null;
 let pendingDeleteIndex = -1;
 let pendingDeleteTimeout: ReturnType<typeof setTimeout> | null = null;
+let latestRequestedListId: string | null = null;
 
 export async function loadTodos(listId: string | null) {
+	latestRequestedListId = listId;
+
 	if (!listId) {
 		todosState.items = [];
 		todosState.loadedForListId = null;
 		return;
 	}
+
+	const cached = todosCache.get(listId);
+	if (cached) {
+		// Show cached data instantly, then silently refresh in the background.
+		todosState.items = cached;
+		todosState.loadedForListId = listId;
+	}
+
 	const res = await fetch(`/api/todos?listId=${listId}`);
 	if (res.ok) {
-		todosState.items = await res.json();
-		todosState.loadedForListId = listId;
+		const fresh: Todo[] = await res.json();
+		todosCache.set(listId, fresh);
+		// Ignore stale responses from a list the user has since navigated away from.
+		if (latestRequestedListId === listId) {
+			todosState.items = fresh;
+			todosState.loadedForListId = listId;
+		}
 	}
 }
 
@@ -54,6 +71,7 @@ export function addTodo(listId: string, title: string, date: string) {
 		})
 		.catch(() => {
 			todosState.items = todosState.items.filter((t) => t.id !== tempId);
+			todosCache.set(listId, todosState.items);
 			bumpListPendingCount(listId, -1);
 		});
 }
