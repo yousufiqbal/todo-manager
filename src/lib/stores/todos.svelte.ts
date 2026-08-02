@@ -46,9 +46,14 @@ export async function loadTodos(listId: string | null) {
 
 	const cached = todosCache.get(listId);
 	if (cached) {
-		// Show cached data instantly, then silently refresh in the background.
+		// Trust the cache once populated — every local mutation keeps it in sync
+		// (same array reference), and this is a single-device app so nothing
+		// else can change server data underneath us. Re-fetching here would
+		// just race with in-flight optimistic writes and flicker stale data
+		// back in.
 		todosState.items = cached;
 		todosState.loadedForListId = listId;
+		return;
 	}
 
 	const res = await fetch(`/api/todos?listId=${listId}`);
