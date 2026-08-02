@@ -68,28 +68,30 @@
 		</button>
 	</div>
 
-	{#if !listsState.loaded}
-		{#if listsLoadingVisible}
-			<div class="sidebar-loading">
-				<div class="spinner"></div>
-			</div>
+	<div class="list-area">
+		{#if !listsState.loaded}
+			{#if listsLoadingVisible}
+				<div class="sidebar-loading">
+					<div class="spinner"></div>
+				</div>
+			{/if}
+		{:else}
+			<ul>
+				{#each listsState.items as list (list.id)}
+					<li class:active={list.id === listsState.selectedId}>
+						<button class="list-btn" onclick={() => handleSelect(list.id)}>
+							<span class="list-name">{list.name}</span>
+							{#if list.pending_count > 0}
+								<span class="count-pill">{list.pending_count}</span>
+							{/if}
+						</button>
+					</li>
+				{:else}
+					<li class="empty">No lists yet</li>
+				{/each}
+			</ul>
 		{/if}
-	{:else}
-		<ul>
-			{#each listsState.items as list (list.id)}
-				<li class:active={list.id === listsState.selectedId}>
-					<button class="list-btn" onclick={() => handleSelect(list.id)}>
-						<span class="list-name">{list.name}</span>
-						{#if list.pending_count > 0}
-							<span class="count-pill">{list.pending_count}</span>
-						{/if}
-					</button>
-				</li>
-			{:else}
-				<li class="empty">No lists yet</li>
-			{/each}
-		</ul>
-	{/if}
+	</div>
 
 	<div class="footer">
 		<button class="logout" onclick={handleLogout}>
@@ -132,7 +134,7 @@
 		flex-shrink: 0;
 		background: var(--bg-elevated);
 		border-right: 1px solid var(--border);
-		padding: var(--space-5) var(--space-3);
+		padding: var(--space-5) var(--space-3) var(--space-3);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
@@ -198,6 +200,13 @@
 		margin: 0;
 	}
 
+	.list-area {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
 	ul {
 		list-style: none;
 		margin: 0;
@@ -206,7 +215,6 @@
 		flex-direction: column;
 		gap: 2px;
 		overflow-y: auto;
-		flex: 1;
 	}
 
 	li {
@@ -217,23 +225,13 @@
 		transition: background-color 150ms var(--ease);
 	}
 
-	li:not(.empty):hover {
+	li:not(.empty):not(.active):hover {
 		background: var(--bg-hover);
 	}
 
 	li.active {
-		background: var(--bg);
-	}
-
-	li.active::before {
-		content: '';
-		position: absolute;
-		left: -1px;
-		top: 20%;
-		bottom: 20%;
-		width: 2.5px;
-		border-radius: 2px;
-		background: var(--fg);
+		background: #3a3a3a;
+		box-shadow: var(--shadow-sm);
 	}
 
 	li.empty {
@@ -269,12 +267,13 @@
 	}
 
 	li.active .count-pill {
-		color: var(--fg);
-		background: var(--border);
+		color: #fff;
+		background: rgba(255, 255, 255, 0.2);
 	}
 
 	li.active .list-btn {
-		color: var(--fg);
+		color: #fff;
+		font-weight: 600;
 	}
 
 	.list-btn:hover {
