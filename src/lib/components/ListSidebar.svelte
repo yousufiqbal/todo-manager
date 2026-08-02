@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { fade, scale } from 'svelte/transition';
 	import { listsState, selectList, addList } from '$lib/stores/lists.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
 
@@ -110,8 +111,8 @@
 />
 
 {#if showAddModal}
-	<div class="modal-backdrop" onclick={closeAddModal} role="presentation">
-		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1">
+	<div class="modal-backdrop" onclick={closeAddModal} role="presentation" transition:fade={{ duration: 150 }}>
+		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="add-title" tabindex="-1" transition:scale={{ duration: 180, start: 0.96 }}>
 			<form onsubmit={submitAdd}>
 				<h2 id="add-title">New list</h2>
 				<label class="field-label">

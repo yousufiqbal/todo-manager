@@ -320,7 +320,6 @@ input[type='date']:focus-visible {
 	justify-content: center;
 	z-index: 250;
 	padding: var(--space-4);
-	animation: fade-in 150ms var(--ease);
 }
 
 .modal {
@@ -328,7 +327,6 @@ input[type='date']:focus-visible {
 	max-width: 100%;
 	padding: var(--space-5);
 	box-shadow: var(--shadow-popover);
-	animation: modal-in 180ms var(--ease);
 }
 
 .modal h2 {
@@ -391,13 +389,3 @@ input[type='date']:focus-visible {
 	}
 }
 
-@keyframes modal-in {
-	from {
-		opacity: 0;
-		transform: scale(0.96) translateY(4px);
-	}
-	to {
-		opacity: 1;
-		transform: scale(1) translateY(0);
-	}
-}

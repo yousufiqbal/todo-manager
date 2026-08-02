@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { fly } from 'svelte/transition';
+	import { fly, fade, scale } from 'svelte/transition';
 	import { listsState, hydrateLists, renameList, removeList } from '$lib/stores/lists.svelte.js';
 	import { todosState, hydrateAllTodos, loadTodos, undoState, undoRemoveTodo, type Todo } from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
@@ -221,8 +221,8 @@
 {/if}
 
 {#if showRenameModal && selectedList}
-	<div class="modal-backdrop" onclick={closeRenameModal} role="presentation">
-		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="rename-title" tabindex="-1">
+	<div class="modal-backdrop" onclick={closeRenameModal} role="presentation" transition:fade={{ duration: 150 }}>
+		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="rename-title" tabindex="-1" transition:scale={{ duration: 180, start: 0.96 }}>
 			<form onsubmit={submitRename}>
 				<h2 id="rename-title">Rename list</h2>
 				<label class="field-label">
@@ -239,8 +239,8 @@
 {/if}
 
 {#if showDeleteModal && selectedList}
-	<div class="modal-backdrop" onclick={closeDeleteModal} role="presentation">
-		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="delete-title" tabindex="-1">
+	<div class="modal-backdrop" onclick={closeDeleteModal} role="presentation" transition:fade={{ duration: 150 }}>
+		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="delete-title" tabindex="-1" transition:scale={{ duration: 180, start: 0.96 }}>
 			<div class="modal-icon">
 				<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
 			</div>
