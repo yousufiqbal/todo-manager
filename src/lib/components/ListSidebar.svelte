@@ -53,9 +53,7 @@
 
 <aside class="sidebar" class:open>
 	<div class="brand">
-		<div class="logo-chip">
-			<svg class="icon logo" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-		</div>
+		<svg class="icon logo" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
 		<div class="brand-text">
 			<span class="brand-title">Todo Manager</span>
 			<span class="brand-subtitle">by Yousuf Iqbal</span>
@@ -150,17 +148,6 @@
 		border-bottom: 1px solid var(--border);
 	}
 
-	.logo-chip {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 36px;
-		height: 36px;
-		flex-shrink: 0;
-		border-radius: var(--radius);
-		background: var(--fg-solid);
-	}
-
 	.brand-text {
 		display: flex;
 		flex-direction: column;
@@ -179,10 +166,11 @@
 	}
 
 	.logo {
-		width: 18px;
-		height: 18px;
-		stroke-width: 2.4;
-		color: #fff;
+		width: 36px;
+		height: 36px;
+		flex-shrink: 0;
+		stroke-width: 2.2;
+		color: var(--fg);
 	}
 
 	.section-header {

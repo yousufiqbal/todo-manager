@@ -40,7 +40,7 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		padding: var(--space-3) var(--space-4);
+		padding: 8px var(--space-3);
 	}
 
 	.plus-icon {
@@ -51,7 +51,7 @@
 		flex: 1;
 		min-width: 0;
 		border: none;
-		padding: 6px 0;
+		padding: 4px 0;
 	}
 
 	.input-row input[type='text']:focus-visible {
@@ -59,25 +59,15 @@
 	}
 
 	.date-input {
-		color: var(--fg-muted);
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		opacity: 0;
+		pointer-events: none;
 	}
 
 	.date-trigger {
-		display: none;
+		display: inline-flex;
 		flex-shrink: 0;
-	}
-
-	@media (max-width: 480px) {
-		.date-input {
-			position: absolute;
-			width: 1px;
-			height: 1px;
-			opacity: 0;
-			pointer-events: none;
-		}
-
-		.date-trigger {
-			display: inline-flex;
-		}
 	}
 </style>

@@ -30,9 +30,7 @@
 
 <div class="wrap">
 	<div class="panel">
-		<div class="logo">
-			<svg class="icon" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-		</div>
+		<svg class="icon logo" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
 
 		<form class="card" onsubmit={handleSubmit}>
 			<div class="heading">
@@ -83,19 +81,8 @@
 	.logo {
 		width: 40px;
 		height: 40px;
-		border-radius: var(--radius);
-		background: var(--fg-solid);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: var(--shadow-md);
-	}
-
-	.logo .icon {
-		width: 20px;
-		height: 20px;
-		color: #fff;
 		stroke-width: 2.2;
+		color: var(--fg);
 	}
 
 	form {
