@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	const result = await db.execute({
-		sql: 'SELECT * FROM todos WHERE list_id = ? ORDER BY date ASC, created_at ASC',
+		sql: 'SELECT * FROM todos WHERE list_id = ? ORDER BY date ASC, created_at DESC',
 		args: [listId]
 	});
 	return json(result.rows);

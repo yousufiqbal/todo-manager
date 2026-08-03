@@ -10,9 +10,9 @@ export const load: PageServerLoad = async ({ url }) => {
 			FROM lists
 			LEFT JOIN todos ON todos.list_id = lists.id
 			GROUP BY lists.id
-			ORDER BY lists.created_at ASC
+			ORDER BY lists.sort_order ASC
 		`),
-		db.execute('SELECT * FROM todos ORDER BY list_id ASC, date ASC, created_at ASC')
+		db.execute('SELECT * FROM todos ORDER BY list_id ASC, date ASC, created_at DESC')
 	]);
 
 	const lists = listsResult.rows as unknown as List[];
@@ -23,8 +23,8 @@ export const load: PageServerLoad = async ({ url }) => {
 	}
 
 	const requestedId = url.searchParams.get('list');
-	const selectedListId =
-		(requestedId && lists.some((l) => l.id === requestedId) ? requestedId : lists[0]?.id) ?? null;
+	const requestedIsValid = requestedId && lists.some((l) => l.id === requestedId && !l.is_separator);
+	const selectedListId = (requestedIsValid ? requestedId : lists.find((l) => !l.is_separator)?.id) ?? null;
 
 	return { lists, todosByList, selectedListId };
 };

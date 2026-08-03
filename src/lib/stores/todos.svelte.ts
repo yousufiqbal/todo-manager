@@ -93,7 +93,7 @@ export async function loadTodos(listId: string | null) {
 export function addTodo(listId: string, title: string, date: string) {
 	const tempId = `temp-${crypto.randomUUID()}`;
 	const todo: Todo = { id: tempId, list_id: listId, title, done: 0, date, created_at: Date.now(), note: '' };
-	todosState.items.push(todo);
+	todosState.items.unshift(todo);
 	syncCache(listId);
 	bumpListPendingCount(listId, 1);
 

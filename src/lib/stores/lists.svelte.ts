@@ -2,7 +2,9 @@ export interface List {
 	id: string;
 	name: string;
 	created_at: number;
+	sort_order: number;
 	pending_count: number;
+	is_separator: number;
 }
 
 export const listsState = $state<{ items: List[]; selectedId: string | null; loaded: boolean }>({
@@ -15,8 +17,8 @@ export async function loadLists() {
 	const res = await fetch('/api/lists');
 	if (res.ok) {
 		listsState.items = await res.json();
-		if (!listsState.selectedId && listsState.items.length > 0) {
-			listsState.selectedId = listsState.items[0].id;
+		if (!listsState.selectedId) {
+			listsState.selectedId = listsState.items.find((l) => !l.is_separator)?.id ?? null;
 		}
 	}
 	listsState.loaded = true;
@@ -37,9 +39,20 @@ export function bumpListPendingCount(id: string, delta: number) {
 	if (list) list.pending_count = Math.max(0, list.pending_count + delta);
 }
 
+function nextSortOrder() {
+	return listsState.items.length > 0 ? Math.max(...listsState.items.map((l) => l.sort_order)) + 1 : 0;
+}
+
 export function addList(name: string) {
 	const tempId = `temp-${crypto.randomUUID()}`;
-	const list: List = { id: tempId, name, created_at: Date.now(), pending_count: 0 };
+	const list: List = {
+		id: tempId,
+		name,
+		created_at: Date.now(),
+		sort_order: nextSortOrder(),
+		pending_count: 0,
+		is_separator: 0
+	};
 	listsState.items.push(list);
 	if (!listsState.selectedId) listsState.selectedId = tempId;
 
@@ -57,7 +70,33 @@ export function addList(name: string) {
 		})
 		.catch(() => {
 			listsState.items = listsState.items.filter((l) => l.id !== tempId);
-			if (listsState.selectedId === tempId) listsState.selectedId = listsState.items[0]?.id ?? null;
+			if (listsState.selectedId === tempId) {
+				listsState.selectedId = listsState.items.find((l) => !l.is_separator)?.id ?? null;
+			}
+		});
+}
+
+export function addSeparator() {
+	const tempId = `temp-${crypto.randomUUID()}`;
+	const separator: List = {
+		id: tempId,
+		name: '',
+		created_at: Date.now(),
+		sort_order: nextSortOrder(),
+		pending_count: 0,
+		is_separator: 1
+	};
+	listsState.items.push(separator);
+
+	fetch('/api/lists/separator', { method: 'POST' })
+		.then(async (res) => {
+			if (!res.ok) throw new Error('failed');
+			const created: List = await res.json();
+			const idx = listsState.items.findIndex((l) => l.id === tempId);
+			if (idx !== -1) listsState.items[idx] = created;
+		})
+		.catch(() => {
+			listsState.items = listsState.items.filter((l) => l.id !== tempId);
 		});
 }
 
@@ -85,10 +124,27 @@ export function removeList(id: string) {
 	if (idx === -1) return;
 	const [removed] = listsState.items.splice(idx, 1);
 	if (listsState.selectedId === id) {
-		listsState.selectedId = listsState.items[0]?.id ?? null;
+		listsState.selectedId = listsState.items.find((l) => !l.is_separator)?.id ?? null;
 	}
 
 	fetch(`/api/lists/${id}`, { method: 'DELETE' }).catch(() => {
 		listsState.items.splice(idx, 0, removed);
+	});
+}
+
+export function reorderLists(orderedIds: string[]) {
+	const prevItems = listsState.items;
+	const byId = new Map(prevItems.map((l) => [l.id, l]));
+	const reordered = orderedIds.map((id) => byId.get(id)).filter((l): l is List => !!l);
+	if (reordered.length !== prevItems.length) return;
+
+	listsState.items = reordered;
+
+	fetch('/api/lists/reorder', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ order: orderedIds })
+	}).catch(() => {
+		listsState.items = prevItems;
 	});
 }

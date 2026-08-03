@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { fade, scale } from 'svelte/transition';
-	import { listsState, selectList, addList } from '$lib/stores/lists.svelte.js';
+	import { listsState, selectList, addList, addSeparator, removeList, reorderLists } from '$lib/stores/lists.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
 
 	let { open = false, onClose }: { open?: boolean; onClose?: () => void } = $props();
 
 	let showAddModal = $state(false);
 	let newListName = $state('');
+	let showSortModal = $state(false);
 
 	let listsLoadingVisible = $state(false);
 	$effect(() => {
@@ -41,6 +42,45 @@
 		closeAddModal();
 	}
 
+	let dragIndex = $state<number | null>(null);
+	let dragOverIndex = $state<number | null>(null);
+	let dragOverPosition = $state<'before' | 'after' | null>(null);
+
+	function handleDragStart(e: DragEvent, index: number) {
+		dragIndex = index;
+		e.dataTransfer?.setData('text/plain', String(index));
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+	}
+
+	function handleDragOver(e: DragEvent, index: number) {
+		e.preventDefault();
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		dragOverIndex = index;
+		dragOverPosition = e.clientY - rect.top < rect.height / 2 ? 'before' : 'after';
+	}
+
+	function handleDrop(e: DragEvent, index: number) {
+		e.preventDefault();
+		if (dragIndex === null) return;
+
+		const ids = listsState.items.map((l) => l.id);
+		const [moved] = ids.splice(dragIndex, 1);
+		let insertAt = index > dragIndex ? index - 1 : index;
+		if (dragOverPosition === 'after') insertAt += 1;
+		ids.splice(insertAt, 0, moved);
+		reorderLists(ids);
+
+		dragIndex = null;
+		dragOverIndex = null;
+		dragOverPosition = null;
+	}
+
+	function handleDragEnd() {
+		dragIndex = null;
+		dragOverIndex = null;
+		dragOverPosition = null;
+	}
+
 	async function handleLogout() {
 		await fetch('/api/auth/logout', { method: 'POST' });
 		await goto('/login');
@@ -62,9 +102,14 @@
 
 	<div class="section-header">
 		<h2>Lists</h2>
-		<button class="btn-ghost" onclick={openAddModal} aria-label="Add list" title="Add list">
-			<svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
-		</button>
+		<div class="section-header-actions">
+			<button class="btn-ghost" onclick={() => (showSortModal = true)} aria-label="Sort lists" title="Sort lists">
+				<svg class="icon" viewBox="0 0 24 24"><path d="M11 5h10" /><path d="M11 9h7" /><path d="M11 13h4" /><path d="M3 17l3 3 3-3" /><path d="M6 18V4" /></svg>
+			</button>
+			<button class="btn-ghost" onclick={openAddModal} aria-label="Add list" title="Add list">
+				<svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+			</button>
+		</div>
 	</div>
 
 	<div class="list-area">
@@ -77,14 +122,18 @@
 		{:else}
 			<ul>
 				{#each listsState.items as list (list.id)}
-					<li class:active={list.id === listsState.selectedId}>
-						<button class="list-btn" onclick={() => handleSelect(list.id)}>
-							<span class="list-name">{list.name}</span>
-							{#if list.pending_count > 0}
-								<span class="count-pill">{list.pending_count}</span>
-							{/if}
-						</button>
-					</li>
+					{#if list.is_separator}
+						<li class="separator" aria-hidden="true"><hr /></li>
+					{:else}
+						<li class:active={list.id === listsState.selectedId}>
+							<button class="list-btn" onclick={() => handleSelect(list.id)}>
+								<span class="list-name">{list.name}</span>
+								{#if list.pending_count > 0}
+									<span class="count-pill">{list.pending_count}</span>
+								{/if}
+							</button>
+						</li>
+					{/if}
 				{:else}
 					<li class="empty">No lists yet</li>
 				{/each}
@@ -104,6 +153,7 @@
 	onkeydown={(e) => {
 		if (e.key !== 'Escape') return;
 		if (showAddModal) closeAddModal();
+		else if (showSortModal) showSortModal = false;
 		else if (open) onClose?.();
 	}}
 />
@@ -122,6 +172,47 @@
 					<button type="submit" class="btn" disabled={!newListName.trim()}>Create list</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+{#if showSortModal}
+	<div class="modal-backdrop" onclick={() => (showSortModal = false)} role="presentation" transition:fade={{ duration: 150 }}>
+		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="sort-title" tabindex="-1" transition:scale={{ duration: 180, start: 0.96 }}>
+			<h2 id="sort-title">Sort lists</h2>
+			<ul class="sort-list">
+				{#each listsState.items as list, i (list.id)}
+					<li
+						draggable="true"
+						class:dragging={dragIndex === i}
+						class:drop-before={dragOverIndex === i && dragOverPosition === 'before' && dragIndex !== i}
+						class:drop-after={dragOverIndex === i && dragOverPosition === 'after' && dragIndex !== i}
+						ondragstart={(e) => handleDragStart(e, i)}
+						ondragover={(e) => handleDragOver(e, i)}
+						ondrop={(e) => handleDrop(e, i)}
+						ondragend={handleDragEnd}
+					>
+						<svg class="icon drag-handle" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.2" /><circle cx="9" cy="12" r="1.2" /><circle cx="9" cy="18" r="1.2" /><circle cx="15" cy="6" r="1.2" /><circle cx="15" cy="12" r="1.2" /><circle cx="15" cy="18" r="1.2" /></svg>
+						{#if list.is_separator}
+							<hr class="sort-separator-line" />
+						{:else}
+							<span class="sort-list-name">{list.name}</span>
+						{/if}
+						{#if list.is_separator}
+							<button class="btn-ghost sort-remove" onclick={() => removeList(list.id)} aria-label="Remove separator">
+								<svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+							</button>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+			<button type="button" class="add-separator-btn" onclick={addSeparator}>
+				<svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
+				Add separator
+			</button>
+			<div class="modal-actions">
+				<button type="button" class="btn" onclick={() => (showSortModal = false)}>Done</button>
+			</div>
 		</div>
 	</div>
 {/if}
@@ -188,6 +279,107 @@
 		margin: 0;
 	}
 
+	.section-header-actions {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+	}
+
+	.sort-list {
+		list-style: none;
+		margin: 0 0 var(--space-4);
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		max-height: 320px;
+		overflow-y: auto;
+	}
+
+	.sort-list li {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: 6px var(--space-2);
+		border-radius: var(--radius-sm);
+		background: var(--bg-hover);
+		cursor: grab;
+		position: relative;
+		box-shadow: none;
+		transition: opacity 150ms var(--ease);
+	}
+
+	.sort-list li.dragging {
+		opacity: 0.4;
+	}
+
+	.sort-list li.drop-before {
+		box-shadow: 0 -2px 0 0 var(--fg);
+	}
+
+	.sort-list li.drop-after {
+		box-shadow: 0 2px 0 0 var(--fg);
+	}
+
+	.drag-handle {
+		flex-shrink: 0;
+		color: var(--fg-subtle);
+	}
+
+	.sort-list-name {
+		flex: 1;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		font-size: 13px;
+		font-weight: 500;
+	}
+
+	.sort-separator-line {
+		flex: 1;
+		border: none;
+		border-top: 1px dashed var(--border-hover);
+		margin: 0;
+	}
+
+	.sort-remove {
+		flex-shrink: 0;
+		opacity: 0;
+	}
+
+	.sort-list li:hover .sort-remove {
+		opacity: 1;
+	}
+
+	.sort-remove:hover {
+		color: var(--danger);
+		background: var(--danger-bg);
+	}
+
+	.add-separator-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		width: 100%;
+		background: transparent;
+		border: 1px dashed var(--border-hover);
+		border-radius: var(--radius-sm);
+		padding: 8px;
+		color: var(--fg-muted);
+		font-size: 13px;
+		font-weight: 500;
+		margin-bottom: var(--space-4);
+		transition:
+			background-color 150ms var(--ease),
+			color 150ms var(--ease);
+	}
+
+	.add-separator-btn:hover {
+		color: var(--fg);
+		background: var(--bg-hover);
+	}
+
 	.list-area {
 		flex: 1;
 		display: flex;
@@ -213,7 +405,7 @@
 		transition: background-color 150ms var(--ease);
 	}
 
-	li:not(.empty):not(.active):hover {
+	li:not(.empty):not(.active):not(.separator):hover {
 		background: var(--bg-hover);
 	}
 
@@ -226,6 +418,17 @@
 		color: var(--fg-subtle);
 		font-size: 13px;
 		padding: var(--space-2);
+	}
+
+	li.separator {
+		padding: var(--space-2) var(--space-2);
+	}
+
+	li.separator hr {
+		flex: 1;
+		border: none;
+		border-top: 1px solid var(--border-hover);
+		margin: 0;
 	}
 
 	.list-btn {
