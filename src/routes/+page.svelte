@@ -15,7 +15,6 @@
 	import ListSidebar from '$lib/components/ListSidebar.svelte';
 	import TodoInput from '$lib/components/TodoInput.svelte';
 	import DateCard from '$lib/components/DateCard.svelte';
-	import NotesPanel from '$lib/components/NotesPanel.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -170,7 +169,7 @@
 								</button>
 								<button class="popover-item" onclick={handleMoveAllToToday} disabled={!selectedList.pending_count}>
 									<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
-									Move all pending to Today
+									Move All Today
 								</button>
 								<button class="popover-delete" onclick={openDeleteModal}>
 									<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
@@ -227,8 +226,6 @@
 			{/if}
 		{/if}
 	</main>
-
-	<NotesPanel />
 </div>
 
 {#if undoState.todo}
@@ -289,6 +286,14 @@
 		display: flex;
 	}
 
+	@media (min-width: 769px) {
+		.layout {
+			justify-content: center;
+			gap: var(--space-3);
+			padding: var(--space-6) var(--space-4);
+		}
+	}
+
 	main {
 		flex: 1;
 		padding: var(--space-6) var(--space-6);
@@ -296,6 +301,12 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+	}
+
+	@media (min-width: 769px) {
+		main {
+			padding-top: 0;
+		}
 	}
 
 	header {

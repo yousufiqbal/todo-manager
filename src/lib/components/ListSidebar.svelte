@@ -514,6 +514,17 @@
 		animation: fade-in 150ms var(--ease);
 	}
 
+	@media (min-width: 769px) {
+		.sidebar {
+			border: 1px solid var(--border);
+			border-radius: var(--radius);
+			box-shadow: var(--shadow-sm);
+			height: calc(100vh - var(--space-6) * 2);
+			position: sticky;
+			top: var(--space-6);
+		}
+	}
+
 	@media (max-width: 768px) {
 		.sidebar {
 			position: fixed;

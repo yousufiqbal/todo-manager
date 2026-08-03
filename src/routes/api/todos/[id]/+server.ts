@@ -27,11 +27,6 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		sets.push('date = ?');
 		args.push(body.date);
 	}
-	if ('note' in body) {
-		sets.push('note = ?');
-		args.push(body.note ?? '');
-	}
-
 	if (sets.length === 0) {
 		return json({ error: 'no fields to update' }, { status: 400 });
 	}

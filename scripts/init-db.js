@@ -21,19 +21,18 @@ await db.batch(
 			title TEXT NOT NULL,
 			done INTEGER NOT NULL DEFAULT 0,
 			date TEXT NOT NULL,
-			created_at INTEGER NOT NULL,
-			note TEXT NOT NULL DEFAULT ''
+			created_at INTEGER NOT NULL
 		)`
 	],
 	'write'
 );
 
-// ALTER TABLE for pre-existing databases created before these columns existed.
-// SQLite/libSQL has no "ADD COLUMN IF NOT EXISTS", so check first.
+// ALTER TABLE for pre-existing databases whose schema has drifted from the above.
+// SQLite/libSQL has no "ADD/DROP COLUMN IF (NOT) EXISTS", so check first.
 const todoColumns = await db.execute('PRAGMA table_info(todos)');
-if (!todoColumns.rows.some((row) => row.name === 'note')) {
-	await db.execute("ALTER TABLE todos ADD COLUMN note TEXT NOT NULL DEFAULT ''");
-	console.log('Added missing `note` column to todos.');
+if (todoColumns.rows.some((row) => row.name === 'note')) {
+	await db.execute('ALTER TABLE todos DROP COLUMN note');
+	console.log('Dropped unused `note` column from todos.');
 }
 
 const listColumns = await db.execute('PRAGMA table_info(lists)');

@@ -8,6 +8,14 @@
 	let date = $state(todayLocalStr());
 	let dateInputEl: HTMLInputElement | undefined = $state();
 
+	let dateLabel = $derived.by(() => {
+		if (date === todayLocalStr()) return 'Today';
+		const dt = new Date(`${date}T00:00:00`);
+		const day = String(dt.getDate()).padStart(2, '0');
+		const month = dt.toLocaleDateString('en-US', { month: 'long' });
+		return `${day} ${month} ${dt.getFullYear()}`;
+	});
+
 	function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
 		if (!title.trim() || !listId) return;
@@ -26,8 +34,9 @@
 	<svg class="icon plus-icon" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
 	<input type="text" placeholder="Add a todo…" bind:value={title} />
 
-	<button type="button" class="btn-ghost date-trigger" onclick={openDatePicker} aria-label="Pick date">
+	<button type="button" class="btn-ghost date-trigger" onclick={openDatePicker}>
 		<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
+		<span>{dateLabel}</span>
 	</button>
 	<input type="date" class="date-input" bind:value={date} bind:this={dateInputEl} />
 </form>
@@ -65,6 +74,11 @@
 
 	.date-trigger {
 		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 		flex-shrink: 0;
+		font-size: 13px;
+		white-space: nowrap;
+		padding: 6px 10px;
 	}
 </style>

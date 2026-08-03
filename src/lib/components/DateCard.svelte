@@ -1,11 +1,9 @@
 <script lang="ts">
 	import {
-		todosState,
 		toggleTodo,
 		editTodoTitle,
 		moveTodoDate,
 		removeTodo,
-		selectTodo,
 		type Todo
 	} from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
@@ -67,7 +65,7 @@
 	</h3>
 	<ul>
 		{#each todos as todo (todo.id)}
-			<li class:done={!!todo.done} class:selected={todosState.selectedId === todo.id}>
+			<li class:done={!!todo.done}>
 				<label class="checkbox">
 					<input
 						type="checkbox"
@@ -88,7 +86,7 @@
 						use:autofocus
 					/>
 				{:else}
-					<button type="button" class="title" onclick={() => selectTodo(todo.id)} ondblclick={() => startEdit(todo)}>{todo.title}</button>
+					<button type="button" class="title" onclick={() => startEdit(todo)}>{todo.title}</button>
 				{/if}
 
 				<div class="options">
@@ -170,10 +168,6 @@
 
 	li:hover {
 		background: var(--bg-hover);
-	}
-
-	li.selected {
-		background: var(--warning-bg);
 	}
 
 	.checkbox {
