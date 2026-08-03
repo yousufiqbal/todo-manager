@@ -31,5 +31,5 @@ export const POST: RequestHandler = async ({ request }) => {
 		args: [id, list_id, title.trim(), date, created_at]
 	});
 
-	return json({ id, list_id, title: title.trim(), done: 0, date, created_at });
+	return json({ id, list_id, title: title.trim(), done: 0, date, created_at, note: '' });
 };

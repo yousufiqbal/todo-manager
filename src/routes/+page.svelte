@@ -15,6 +15,7 @@
 	import ListSidebar from '$lib/components/ListSidebar.svelte';
 	import TodoInput from '$lib/components/TodoInput.svelte';
 	import DateCard from '$lib/components/DateCard.svelte';
+	import NotesPanel from '$lib/components/NotesPanel.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -226,6 +227,8 @@
 			{/if}
 		{/if}
 	</main>
+
+	<NotesPanel />
 </div>
 
 {#if undoState.todo}

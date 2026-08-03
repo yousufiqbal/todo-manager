@@ -19,10 +19,20 @@ await db.batch(
 			title TEXT NOT NULL,
 			done INTEGER NOT NULL DEFAULT 0,
 			date TEXT NOT NULL,
-			created_at INTEGER NOT NULL
+			created_at INTEGER NOT NULL,
+			note TEXT NOT NULL DEFAULT ''
 		)`
 	],
 	'write'
 );
+
+// ALTER TABLE for pre-existing databases created before the `note` column existed.
+// SQLite/libSQL has no "ADD COLUMN IF NOT EXISTS", so check first.
+const columns = await db.execute('PRAGMA table_info(todos)');
+const hasNote = columns.rows.some((row) => row.name === 'note');
+if (!hasNote) {
+	await db.execute("ALTER TABLE todos ADD COLUMN note TEXT NOT NULL DEFAULT ''");
+	console.log('Added missing `note` column to todos.');
+}
 
 console.log('DB initialized.');

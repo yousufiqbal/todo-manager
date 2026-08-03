@@ -8,12 +8,22 @@ export interface Todo {
 	done: number;
 	date: string;
 	created_at: number;
+	note: string;
 }
 
-export const todosState = $state<{ items: Todo[]; loadedForListId: string | null }>({
+export const todosState = $state<{ items: Todo[]; loadedForListId: string | null; selectedId: string | null }>({
 	items: [],
-	loadedForListId: null
+	loadedForListId: null,
+	selectedId: null
 });
+
+export function selectTodo(id: string) {
+	todosState.selectedId = todosState.selectedId === id ? null : id;
+}
+
+export function clearSelectedTodo() {
+	todosState.selectedId = null;
+}
 
 const UNDO_WINDOW_MS = 5000;
 const todosCache = new Map<string, Todo[]>();
@@ -49,6 +59,7 @@ export function hydrateAllTodos(todosByList: Record<string, Todo[]>, selectedLis
 
 export async function loadTodos(listId: string | null) {
 	latestRequestedListId = listId;
+	todosState.selectedId = null;
 
 	if (!listId) {
 		todosState.items = [];
@@ -81,7 +92,7 @@ export async function loadTodos(listId: string | null) {
 
 export function addTodo(listId: string, title: string, date: string) {
 	const tempId = `temp-${crypto.randomUUID()}`;
-	const todo: Todo = { id: tempId, list_id: listId, title, done: 0, date, created_at: Date.now() };
+	const todo: Todo = { id: tempId, list_id: listId, title, done: 0, date, created_at: Date.now(), note: '' };
 	todosState.items.push(todo);
 	syncCache(listId);
 	bumpListPendingCount(listId, 1);
@@ -162,6 +173,10 @@ export function moveTodoDate(id: string, date: string) {
 	patchTodo(id, { date }, ['date']);
 }
 
+export function updateTodoNote(id: string, note: string) {
+	patchTodo(id, { note }, ['note']);
+}
+
 export function moveAllPendingToToday(listId: string) {
 	const today = todayLocalStr();
 	const pendingIds = todosState.items
@@ -191,6 +206,7 @@ export function removeTodo(id: string) {
 
 	const idx = todosState.items.findIndex((t) => t.id === id);
 	if (idx === -1) return;
+	if (todosState.selectedId === id) todosState.selectedId = null;
 	const [removed] = todosState.items.splice(idx, 1);
 	syncCache(removed.list_id);
 	if (!removed.done) bumpListPendingCount(removed.list_id, -1);

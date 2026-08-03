@@ -1,5 +1,13 @@
 <script lang="ts">
-	import { toggleTodo, editTodoTitle, moveTodoDate, removeTodo, type Todo } from '$lib/stores/todos.svelte.js';
+	import {
+		todosState,
+		toggleTodo,
+		editTodoTitle,
+		moveTodoDate,
+		removeTodo,
+		selectTodo,
+		type Todo
+	} from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
 	import { todayLocalStr } from '$lib/date.js';
 
@@ -59,7 +67,7 @@
 	</h3>
 	<ul>
 		{#each todos as todo (todo.id)}
-			<li class:done={!!todo.done}>
+			<li class:done={!!todo.done} class:selected={todosState.selectedId === todo.id}>
 				<label class="checkbox">
 					<input
 						type="checkbox"
@@ -80,7 +88,7 @@
 						use:autofocus
 					/>
 				{:else}
-					<button type="button" class="title" onclick={() => startEdit(todo)}>{todo.title}</button>
+					<button type="button" class="title" onclick={() => selectTodo(todo.id)} ondblclick={() => startEdit(todo)}>{todo.title}</button>
 				{/if}
 
 				<div class="options">
@@ -164,6 +172,10 @@
 		background: var(--bg-hover);
 	}
 
+	li.selected {
+		background: var(--warning-bg);
+	}
+
 	.checkbox {
 		display: inline-flex;
 		cursor: pointer;
@@ -231,7 +243,7 @@
 		padding: 2px 0;
 		color: inherit;
 		font: inherit;
-		cursor: text;
+		cursor: pointer;
 		transition: color 150ms var(--ease);
 	}
 
