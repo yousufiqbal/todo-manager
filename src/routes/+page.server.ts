@@ -23,8 +23,8 @@ export const load: PageServerLoad = async ({ url }) => {
 	}
 
 	const requestedId = url.searchParams.get('list');
-	const requestedIsValid = requestedId && lists.some((l) => l.id === requestedId && !l.is_separator);
-	const selectedListId = (requestedIsValid ? requestedId : lists.find((l) => !l.is_separator)?.id) ?? null;
+	const requestedIsValid = requestedId && lists.some((l) => l.id === requestedId);
+	const selectedListId = (requestedIsValid ? requestedId : lists[0]?.id) ?? null;
 
 	return { lists, todosByList, selectedListId };
 };

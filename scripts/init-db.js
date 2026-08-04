@@ -12,8 +12,7 @@ await db.batch(
 			id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
 			created_at INTEGER NOT NULL,
-			sort_order INTEGER NOT NULL DEFAULT 0,
-			is_separator INTEGER NOT NULL DEFAULT 0
+			sort_order INTEGER NOT NULL DEFAULT 0
 		)`,
 		`CREATE TABLE IF NOT EXISTS todos (
 			id TEXT PRIMARY KEY,
@@ -49,9 +48,10 @@ if (!listColumns.rows.some((row) => row.name === 'sort_order')) {
 	console.log('Added missing `sort_order` column to lists and backfilled by creation order.');
 }
 
-if (!listColumns.rows.some((row) => row.name === 'is_separator')) {
-	await db.execute('ALTER TABLE lists ADD COLUMN is_separator INTEGER NOT NULL DEFAULT 0');
-	console.log('Added missing `is_separator` column to lists.');
+if (listColumns.rows.some((row) => row.name === 'is_separator')) {
+	await db.execute('DELETE FROM lists WHERE is_separator = 1');
+	await db.execute('ALTER TABLE lists DROP COLUMN is_separator');
+	console.log('Removed separator lists and dropped `is_separator` column.');
 }
 
 console.log('DB initialized.');

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { fade, scale } from 'svelte/transition';
-	import { listsState, selectList, addList, addSeparator, removeList, reorderLists } from '$lib/stores/lists.svelte.js';
+	import { listsState, selectList, addList, removeList, reorderLists } from '$lib/stores/lists.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
 
 	let { open = false, onClose }: { open?: boolean; onClose?: () => void } = $props();
@@ -114,18 +114,14 @@
 		{:else}
 			<ul>
 				{#each listsState.items as list (list.id)}
-					{#if list.is_separator}
-						<li class="separator" aria-hidden="true"><hr /></li>
-					{:else}
-						<li class:active={list.id === listsState.selectedId}>
-							<button class="list-btn" onclick={() => handleSelect(list.id)}>
-								<span class="list-name">{list.name}</span>
-								{#if list.pending_count > 0}
-									<span class="count-pill">{list.pending_count}</span>
-								{/if}
-							</button>
-						</li>
-					{/if}
+					<li class:active={list.id === listsState.selectedId}>
+						<button class="list-btn" onclick={() => handleSelect(list.id)}>
+							<span class="list-name">{list.name}</span>
+							{#if list.pending_count > 0}
+								<span class="count-pill">{list.pending_count}</span>
+							{/if}
+						</button>
+					</li>
 				{:else}
 					<li class="empty">No lists yet</li>
 				{/each}
@@ -191,23 +187,10 @@
 						ondragend={handleDragEnd}
 					>
 						<svg class="icon drag-handle" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.2" /><circle cx="9" cy="12" r="1.2" /><circle cx="9" cy="18" r="1.2" /><circle cx="15" cy="6" r="1.2" /><circle cx="15" cy="12" r="1.2" /><circle cx="15" cy="18" r="1.2" /></svg>
-						{#if list.is_separator}
-							<hr class="sort-separator-line" />
-						{:else}
-							<span class="sort-list-name">{list.name}</span>
-						{/if}
-						{#if list.is_separator}
-							<button class="btn-ghost sort-remove" onclick={() => removeList(list.id)} aria-label="Remove separator">
-								<svg class="icon" viewBox="0 0 24 24"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
-							</button>
-						{/if}
+						<span class="sort-list-name">{list.name}</span>
 					</li>
 				{/each}
 			</ul>
-			<button type="button" class="add-separator-btn" onclick={addSeparator}>
-				<svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14" /></svg>
-				Add separator
-			</button>
 			<div class="modal-actions">
 				<button type="button" class="btn" onclick={() => (showSortModal = false)}>Done</button>
 			</div>
@@ -335,51 +318,6 @@
 		font-weight: 500;
 	}
 
-	.sort-separator-line {
-		flex: 1;
-		border: none;
-		border-top: 1px dashed var(--border-hover);
-		margin: 0;
-	}
-
-	.sort-remove {
-		flex-shrink: 0;
-		opacity: 0;
-	}
-
-	.sort-list li:hover .sort-remove {
-		opacity: 1;
-	}
-
-	.sort-remove:hover {
-		color: var(--danger);
-		background: var(--danger-bg);
-	}
-
-	.add-separator-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-2);
-		width: 100%;
-		background: transparent;
-		border: 1px dashed var(--border-hover);
-		border-radius: var(--radius-sm);
-		padding: 8px;
-		color: var(--fg-muted);
-		font-size: 13px;
-		font-weight: 500;
-		margin-bottom: var(--space-4);
-		transition:
-			background-color 150ms var(--ease),
-			color 150ms var(--ease);
-	}
-
-	.add-separator-btn:hover {
-		color: var(--fg);
-		background: var(--bg-hover);
-	}
-
 	.list-area {
 		flex: 1;
 		display: flex;
@@ -405,7 +343,7 @@
 		transition: background-color 150ms var(--ease);
 	}
 
-	li:not(.empty):not(.active):not(.separator):hover {
+	li:not(.empty):not(.active):hover {
 		background: var(--bg-hover);
 	}
 
@@ -418,17 +356,6 @@
 		color: var(--fg-subtle);
 		font-size: 13px;
 		padding: var(--space-2);
-	}
-
-	li.separator {
-		padding: var(--space-2) var(--space-2);
-	}
-
-	li.separator hr {
-		flex: 1;
-		border: none;
-		border-top: 1px solid var(--border-hover);
-		margin: 0;
 	}
 
 	.list-btn {
