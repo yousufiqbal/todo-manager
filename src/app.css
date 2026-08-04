@@ -44,6 +44,12 @@ body {
 	height: 100%;
 }
 
+html {
+	/* Always reserve the scrollbar track so switching between a list that
+	   overflows and one that doesn't can't shift the layout sideways. */
+	scrollbar-gutter: stable;
+}
+
 body {
 	margin: 0;
 	background: var(--bg);

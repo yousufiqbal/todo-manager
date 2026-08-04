@@ -1,42 +1,63 @@
-# sv
+# Todo Manager
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A single-user todo manager built with SvelteKit and Turso. Todos live in lists and are
+grouped into per-date cards. All mutations are optimistic — the UI updates immediately and
+reconciles (or rolls back) once the request settles.
 
-## Creating a project
+## Stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- SvelteKit 2 + Svelte 5 (runes)
+- Turso / libSQL via `@libsql/client`
+- `adapter-vercel` (configured inline in `vite.config.js` — there is no `svelte.config.js`)
+- Plain CSS, no component library
 
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.17.0 create --template minimal --types jsdoc --install npm .
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Setup
 
 ```sh
+npm install
+cp .env.example .env   # then fill in the values below
+npm run db:init        # creates tables and applies pending migrations
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+### Environment variables
 
-To create a production version of your app:
+| Variable | Purpose |
+| --- | --- |
+| `TURSO_DATABASE_URL` | libSQL connection URL |
+| `TURSO_AUTH_TOKEN` | Turso auth token |
+| `ADMIN_EMAIL` | The only account that can sign in |
+| `ADMIN_PASSWORD` | Compared in constant time; stored as plain text by design |
+| `SESSION_SECRET` | HMAC key for the session cookie — use a long random string |
 
-```sh
-npm run build
-```
+Set the same five variables in the Vercel project settings before deploying. Do not escape
+special characters in them: Vercel treats env values literally, whereas local `.env` files
+go through Vite's `dotenv-expand`, so a value that needs escaping locally will break in
+production.
 
-You can preview the production build with `npm run preview`.
+## Auth
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+One hardcoded admin, no users table. Login compares `ADMIN_EMAIL` / `ADMIN_PASSWORD` in
+constant time, then sets an httpOnly, `Secure`, `SameSite=Lax` cookie containing an
+HMAC-signed payload with an embedded expiry (30 days). `src/hooks.server.ts` verifies it on
+every request, redirecting page loads to `/login` and returning 401 JSON for `/api/*`.
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run check` | `svelte-check` typecheck |
+| `npm run db:init` | Create tables + run idempotent migrations |
+
+`db:init` is safe to re-run; it checks the existing schema with `PRAGMA table_info` before
+adding or dropping columns.
+
+## Notes
+
+- `npm run build` fails locally on Windows with `EPERM: operation not permitted, symlink`
+  unless Developer Mode is enabled. This affects an `adapter-vercel` step only; the build
+  succeeds on Vercel's Linux builders.
+- Dates are handled in local time via `src/lib/date.ts`. Avoid `toISOString()` for
+  date-only values — it shifts the day for timezones ahead of UTC.

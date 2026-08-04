@@ -17,7 +17,11 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	const lists = listsResult.rows as unknown as List[];
 
+	// Seed every list up front, not just the ones with rows: a list left without an
+	// entry looks like a cache miss on the client and triggers a needless fetch +
+	// spinner, which is exactly what preloading here is meant to avoid.
 	const todosByList: Record<string, Todo[]> = {};
+	for (const list of lists) todosByList[list.id] = [];
 	for (const row of todosResult.rows as unknown as Todo[]) {
 		(todosByList[row.list_id] ??= []).push(row);
 	}

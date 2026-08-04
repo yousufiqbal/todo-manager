@@ -31,9 +31,24 @@ let latestRequestedListId: string | null = null;
  * mutation is fragile, so every mutation explicitly snapshots the current
  * (proxied) state into a plain array and writes it into the cache for the
  * list it belongs to.
+ *
+ * Mutations fire from async fetch callbacks that can resolve *after* the user
+ * switched lists, at which point todosState.items holds a different list — so
+ * snapshotting it into `listId` would poison that list's cache. In that case
+ * drop the entry instead and let the next visit refetch; the server already
+ * has (or rejected) the change, so a refetch is always authoritative.
  */
 function syncCache(listId: string) {
+	if (todosState.loadedForListId !== listId) {
+		todosCache.delete(listId);
+		return;
+	}
 	todosCache.set(listId, $state.snapshot(todosState.items) as Todo[]);
+}
+
+/** True when `listId` is the list currently rendered, i.e. safe to mutate live state. */
+function isLive(listId: string) {
+	return todosState.loadedForListId === listId;
 }
 
 export function hydrateAllTodos(todosByList: Record<string, Todo[]>, selectedListId: string | null) {
@@ -67,7 +82,7 @@ export async function loadTodos(listId: string | null) {
 		return;
 	}
 
-	const res = await fetch(`/api/todos?listId=${listId}`);
+	const res = await fetch(`/api/todos?listId=${encodeURIComponent(listId)}`);
 	if (res.ok) {
 		const fresh: Todo[] = await res.json();
 		todosCache.set(listId, fresh);
@@ -94,12 +109,16 @@ export function addTodo(listId: string, title: string, date: string) {
 		.then(async (res) => {
 			if (!res.ok) throw new Error('failed');
 			const created: Todo = await res.json();
-			const idx = todosState.items.findIndex((t) => t.id === tempId);
-			if (idx !== -1) todosState.items[idx] = created;
+			if (isLive(listId)) {
+				const idx = todosState.items.findIndex((t) => t.id === tempId);
+				if (idx !== -1) todosState.items[idx] = created;
+			}
 			syncCache(listId);
 		})
 		.catch(() => {
-			todosState.items = todosState.items.filter((t) => t.id !== tempId);
+			if (isLive(listId)) {
+				todosState.items = todosState.items.filter((t) => t.id !== tempId);
+			}
 			syncCache(listId);
 			bumpListPendingCount(listId, -1);
 		});
@@ -123,7 +142,11 @@ function patchTodo(id: string, patch: Partial<Todo>, rollbackFields: (keyof Todo
 			if (!res.ok) throw new Error('failed');
 		})
 		.catch(() => {
-			Object.assign(todo, prev);
+			// Re-look-up rather than reusing `todo`: navigating away and back
+			// rebuilds items from the cache, leaving the captured reference
+			// detached from what's rendered.
+			const current = isLive(listId) ? todosState.items.find((t) => t.id === id) : undefined;
+			if (current) Object.assign(current, prev);
 			syncCache(listId);
 		});
 }
@@ -148,7 +171,8 @@ export function toggleTodo(id: string, done: boolean) {
 			if (!res.ok) throw new Error('failed');
 		})
 		.catch(() => {
-			todo.done = wasDone ? 1 : 0;
+			const current = isLive(listId) ? todosState.items.find((t) => t.id === id) : undefined;
+			if (current) current.done = wasDone ? 1 : 0;
 			syncCache(listId);
 			bumpListPendingCount(listId, done ? 1 : -1);
 		});
@@ -206,12 +230,24 @@ export function undoRemoveTodo() {
 	if (pendingDeleteTimeout) clearTimeout(pendingDeleteTimeout);
 	pendingDeleteTimeout = null;
 
-	const todo = undoState.todo;
-	const idx = Math.min(pendingDeleteIndex, todosState.items.length);
-	todosState.items.splice(idx, 0, todo);
-	syncCache(todo.list_id);
-	if (!todo.done) bumpListPendingCount(todo.list_id, 1);
+	const todo = $state.snapshot(undoState.todo) as Todo;
+	const listId = todo.list_id;
+
+	// The undo toast outlives a list switch, so restore into the list the todo
+	// actually belongs to — not whatever happens to be on screen.
+	if (isLive(listId)) {
+		todosState.items.splice(Math.min(pendingDeleteIndex, todosState.items.length), 0, todo);
+		syncCache(listId);
+	} else {
+		const cached = todosCache.get(listId);
+		// No cache entry means the next visit refetches, and the server still has
+		// the todo (the DELETE never fired), so there is nothing to restore here.
+		if (cached) cached.splice(Math.min(pendingDeleteIndex, cached.length), 0, todo);
+	}
+
+	if (!todo.done) bumpListPendingCount(listId, 1);
 
 	pendingDeleteId = null;
+	pendingDeleteIndex = -1;
 	undoState.todo = null;
 }

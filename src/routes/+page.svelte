@@ -149,12 +149,14 @@
 
 	<main>
 		<header>
-			<div class="title-row">
-				<h1>{selectedList ? selectedList.name : 'Select a list'}</h1>
-				{#if selectedList && selectedList.pending_count > 0}
-					<span class="count-pill">{selectedList.pending_count}</span>
-				{/if}
-			</div>
+			{#key selectedList?.id}
+				<div class="title-row" in:fly|global={{ y: 10, duration: 250 }}>
+					<h1>{selectedList ? selectedList.name : 'Select a list'}</h1>
+					{#if selectedList && selectedList.pending_count > 0}
+						<span class="count-pill">{selectedList.pending_count}</span>
+					{/if}
+				</div>
+			{/key}
 			<div class="header-actions">
 				{#if selectedList}
 					<div class="list-options">
@@ -209,10 +211,8 @@
 			{:else}
 				{#key selectedList.id}
 					<div class="cards">
-						{#each grouped as [date, todos], i (date)}
-							<div in:fly|global={{ y: 10, duration: 250, delay: i * 40 }}>
-								<DateCard {date} {todos} />
-							</div>
+						{#each grouped as [date, todos] (date)}
+							<DateCard {date} {todos} />
 						{/each}
 						{#if grouped.length === 0}
 							<div class="empty-state">

@@ -101,9 +101,16 @@ export function removeList(id: string) {
 		listsState.selectedId = listsState.items[0]?.id ?? null;
 	}
 
-	fetch(`/api/lists/${id}`, { method: 'DELETE' }).catch(() => {
-		listsState.items.splice(idx, 0, removed);
-	});
+	// fetch only rejects on network failure, so a 401/500 must be turned into a
+	// throw explicitly or the list stays gone locally while the server still has it.
+	fetch(`/api/lists/${id}`, { method: 'DELETE' })
+		.then((res) => {
+			if (!res.ok) throw new Error('failed');
+		})
+		.catch(() => {
+			listsState.items.splice(idx, 0, removed);
+			if (listsState.selectedId === null) listsState.selectedId = removed.id;
+		});
 }
 
 export function reorderLists(orderedIds: string[]) {
@@ -118,7 +125,11 @@ export function reorderLists(orderedIds: string[]) {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ order: orderedIds })
-	}).catch(() => {
-		listsState.items = prevItems;
-	});
+	})
+		.then((res) => {
+			if (!res.ok) throw new Error('failed');
+		})
+		.catch(() => {
+			listsState.items = prevItems;
+		});
 }
