@@ -42,43 +42,72 @@
 		closeAddModal();
 	}
 
-	let dragIndex = $state<number | null>(null);
-	let dragOverIndex = $state<number | null>(null);
-	let dragOverPosition = $state<'before' | 'after' | null>(null);
+	let dragId = $state<string | null>(null);
+	// Insertion point as an index into the *currently displayed* array: the item
+	// lands immediately before items[dropIndex] (== items.length means "at end").
+	let dropIndex = $state<number | null>(null);
+	// Y offset of the indicator within the list's scrollable content box.
+	let dropLineY = $state(0);
+	let sortListEl = $state<HTMLUListElement | undefined>();
 
-	function handleDragStart(e: DragEvent, index: number) {
-		dragIndex = index;
-		e.dataTransfer?.setData('text/plain', String(index));
+	function handleDragStart(e: DragEvent, id: string) {
+		dragId = id;
+		e.dataTransfer?.setData('text/plain', id);
 		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
 	}
 
-	function handleDragOver(e: DragEvent, index: number) {
+	/**
+	 * dragover lives on the <ul>, not each row: the indicator is an absolutely
+	 * positioned overlay, so it never reflows the rows out from under the cursor
+	 * (which would retrigger dragover on a different row and thrash the target).
+	 * Handling it here also means every pixel of the list is a valid drop zone.
+	 */
+	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
-		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-		dragOverIndex = index;
-		dragOverPosition = e.clientY - rect.top < rect.height / 2 ? 'before' : 'after';
+		if (!dragId || !sortListEl) return;
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+
+		const rows = [...sortListEl.querySelectorAll<HTMLElement>('li[data-id]')];
+		if (rows.length === 0) return;
+
+		const listRect = sortListEl.getBoundingClientRect();
+		const toContentY = (clientY: number) => clientY - listRect.top + sortListEl!.scrollTop;
+
+		// Insert before the first row whose midpoint sits below the cursor.
+		let index = rows.length;
+		for (let i = 0; i < rows.length; i++) {
+			const rect = rows[i].getBoundingClientRect();
+			if (e.clientY < rect.top + rect.height / 2) {
+				index = i;
+				break;
+			}
+		}
+
+		dropIndex = index;
+		dropLineY =
+			index < rows.length
+				? toContentY(rows[index].getBoundingClientRect().top) - 1
+				: toContentY(rows[rows.length - 1].getBoundingClientRect().bottom) - 1;
 	}
 
-	function handleDrop(e: DragEvent, index: number) {
+	function handleDrop(e: DragEvent) {
 		e.preventDefault();
-		if (dragIndex === null) return;
+		if (!dragId || dropIndex === null) return resetDrag();
 
-		const ids = listsState.items.map((l) => l.id);
-		const [moved] = ids.splice(dragIndex, 1);
-		let insertAt = index > dragIndex ? index - 1 : index;
-		if (dragOverPosition === 'after') insertAt += 1;
-		ids.splice(insertAt, 0, moved);
-		reorderLists(ids);
+		// Split the displayed order at the insertion point, drop the dragged id out
+		// of both halves, then rejoin around it — correct whether it moved up or down.
+		const ordered = listsState.items.map((l) => l.id);
+		const before = ordered.slice(0, dropIndex).filter((id) => id !== dragId);
+		const after = ordered.slice(dropIndex).filter((id) => id !== dragId);
+		const next = [...before, dragId, ...after];
 
-		dragIndex = null;
-		dragOverIndex = null;
-		dragOverPosition = null;
+		if (next.some((id, i) => id !== ordered[i])) reorderLists(next);
+		resetDrag();
 	}
 
-	function handleDragEnd() {
-		dragIndex = null;
-		dragOverIndex = null;
-		dragOverPosition = null;
+	function resetDrag() {
+		dragId = null;
+		dropIndex = null;
 	}
 
 	async function handleLogout() {
@@ -174,17 +203,25 @@
 	<div class="modal-backdrop" onclick={() => (showSortModal = false)} role="presentation" transition:fade={{ duration: 150 }}>
 		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="sort-title" tabindex="-1" transition:scale={{ duration: 180, start: 0.96 }}>
 			<h2 id="sort-title">Sort lists</h2>
-			<ul class="sort-list">
-				{#each listsState.items as list, i (list.id)}
+			<ul
+				class="sort-list"
+				bind:this={sortListEl}
+				ondragover={handleDragOver}
+				ondrop={handleDrop}
+				ondragend={resetDrag}
+				ondragleave={(e) => {
+					if (!e.relatedTarget || !sortListEl?.contains(e.relatedTarget as Node)) dropIndex = null;
+				}}
+			>
+				{#if dragId && dropIndex !== null}
+					<div class="drop-line" style="top: {dropLineY}px" aria-hidden="true"></div>
+				{/if}
+				{#each listsState.items as list (list.id)}
 					<li
+						data-id={list.id}
 						draggable="true"
-						class:dragging={dragIndex === i}
-						class:drop-before={dragOverIndex === i && dragOverPosition === 'before' && dragIndex !== i}
-						class:drop-after={dragOverIndex === i && dragOverPosition === 'after' && dragIndex !== i}
-						ondragstart={(e) => handleDragStart(e, i)}
-						ondragover={(e) => handleDragOver(e, i)}
-						ondrop={(e) => handleDrop(e, i)}
-						ondragend={handleDragEnd}
+						class:dragging={dragId === list.id}
+						ondragstart={(e) => handleDragStart(e, list.id)}
 					>
 						<svg class="icon drag-handle" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.2" /><circle cx="9" cy="12" r="1.2" /><circle cx="9" cy="18" r="1.2" /><circle cx="15" cy="6" r="1.2" /><circle cx="15" cy="12" r="1.2" /><circle cx="15" cy="18" r="1.2" /></svg>
 						<span class="sort-list-name">{list.name}</span>
@@ -277,6 +314,7 @@
 		gap: 2px;
 		max-height: 320px;
 		overflow-y: auto;
+		position: relative;
 	}
 
 	.sort-list li {
@@ -296,12 +334,17 @@
 		opacity: 0.4;
 	}
 
-	.sort-list li.drop-before {
-		box-shadow: 0 -2px 0 0 var(--fg);
-	}
-
-	.sort-list li.drop-after {
-		box-shadow: 0 2px 0 0 var(--fg);
+	/* Absolute overlay so showing the indicator never reflows the rows underneath
+	   the cursor (which would retrigger dragover and thrash the drop target). */
+	.drop-line {
+		position: absolute;
+		left: 0;
+		right: 0;
+		height: 2px;
+		border-radius: 1px;
+		background: var(--fg);
+		pointer-events: none;
+		z-index: 1;
 	}
 
 	.drag-handle {
