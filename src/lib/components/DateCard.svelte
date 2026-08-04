@@ -86,7 +86,7 @@
 						use:autofocus
 					/>
 				{:else}
-					<button type="button" class="title" onclick={() => startEdit(todo)}>{todo.title}</button>
+					<button type="button" class="title" ondblclick={() => startEdit(todo)}>{todo.title}</button>
 				{/if}
 
 				<div class="options">

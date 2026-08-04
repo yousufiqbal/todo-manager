@@ -92,14 +92,6 @@
 {/if}
 
 <aside class="sidebar" class:open>
-	<div class="brand">
-		<svg class="icon logo" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-		<div class="brand-text">
-			<span class="brand-title">Todo Manager</span>
-			<span class="brand-subtitle">by Yousuf Iqbal</span>
-		</div>
-	</div>
-
 	<div class="section-header">
 		<h2>Lists</h2>
 		<div class="section-header-actions">
@@ -142,10 +134,16 @@
 	</div>
 
 	<div class="footer">
-		<button class="logout" onclick={handleLogout}>
-			<svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
-			Log out
-		</button>
+		<div class="brand">
+			<svg class="icon logo" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+			<div class="brand-text">
+				<span class="brand-title">Todo Manager</span>
+				<span class="brand-subtitle">by Yousuf Iqbal</span>
+			</div>
+			<button class="btn-ghost logout" onclick={handleLogout} aria-label="Log out" title="Log out">
+				<svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+			</button>
+		</div>
 	</div>
 </aside>
 
@@ -234,15 +232,17 @@
 		display: flex;
 		align-items: center;
 		gap: var(--space-3);
-		margin: 0 calc(-1 * var(--space-3));
-		padding: 0 var(--space-3) var(--space-4);
-		border-bottom: 1px solid var(--border);
+		margin-top: var(--space-3);
+		padding: var(--space-3) var(--space-3) 0;
+		border-top: 1px solid var(--border);
 	}
 
 	.brand-text {
 		display: flex;
 		flex-direction: column;
 		line-height: 1.3;
+		flex: 1;
+		min-width: 0;
 	}
 
 	.brand-title {
@@ -458,8 +458,8 @@
 	}
 
 	li.active .count-pill {
-		color: #fcd34d;
-		background: rgba(252, 211, 77, 0.18);
+		color: #fff;
+		background: rgba(255, 255, 255, 0.18);
 	}
 
 	li.active .list-btn {
@@ -473,30 +473,10 @@
 
 	.footer {
 		margin: 0 calc(-1 * var(--space-3));
-		padding: var(--space-3) var(--space-3) 0;
-		border-top: 1px solid var(--border);
 	}
 
 	.logout {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		width: 100%;
-		background: transparent;
-		border: none;
-		border-radius: var(--radius-sm);
-		padding: 8px var(--space-2);
-		color: var(--fg-muted);
-		font-size: 13px;
-		font-weight: 500;
-		transition:
-			background-color 150ms var(--ease),
-			color 150ms var(--ease);
-	}
-
-	.logout:hover {
-		color: var(--fg);
-		background: var(--bg-hover);
+		flex-shrink: 0;
 	}
 
 	.sidebar-loading {
