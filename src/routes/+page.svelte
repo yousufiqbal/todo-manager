@@ -286,27 +286,16 @@
 		display: flex;
 	}
 
-	@media (min-width: 769px) {
-		.layout {
-			justify-content: center;
-			gap: var(--space-3);
-			padding: var(--space-6) var(--space-4);
-		}
-	}
-
 	main {
 		flex: 1;
 		padding: var(--space-6) var(--space-6);
 		max-width: 720px;
+		/* Centers within the space left over beside the sidebar. Keep this on the
+		   item — justify-content on .layout would shove the sidebar off the edge. */
+		margin: 0 auto;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
-	}
-
-	@media (min-width: 769px) {
-		main {
-			padding-top: 0;
-		}
 	}
 
 	header {

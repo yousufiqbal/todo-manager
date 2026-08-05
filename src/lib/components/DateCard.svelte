@@ -11,6 +11,10 @@
 
 	let { date, todos }: { date: string; todos: Todo[] } = $props();
 
+	// Pending before done. Array.prototype.sort is stable, so todos keep their
+	// existing created_at ordering within each group.
+	let sortedTodos = $derived([...todos].sort((a, b) => Number(a.done) - Number(b.done)));
+
 	let editingId = $state<string | null>(null);
 	let editingTitle = $state('');
 	let openOptionsId = $state<string | null>(null);
@@ -59,12 +63,11 @@
 
 <section class="card date-card">
 	<h3 class:today={isToday(date)}>
-		<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
 		{formatDate(date)}
 		{#if isToday(date)}<span class="today-badge">Today</span>{/if}
 	</h3>
 	<ul>
-		{#each todos as todo (todo.id)}
+		{#each sortedTodos as todo (todo.id)}
 			<li class:done={!!todo.done}>
 				<label class="checkbox">
 					<input
@@ -128,20 +131,16 @@
 		font-weight: 600;
 	}
 
-	h3 .icon {
-		color: var(--fg-subtle);
-	}
-
-	h3.today .icon {
-		color: var(--fg);
+	h3.today {
+		color: var(--warning);
 	}
 
 	.today-badge {
 		margin-left: auto;
 		font-size: 11px;
 		font-weight: 600;
-		color: #fff;
-		background: var(--fg-solid);
+		color: var(--warning);
+		background: var(--warning-bg);
 		padding: 2px 8px;
 		border-radius: 999px;
 		letter-spacing: 0.02em;

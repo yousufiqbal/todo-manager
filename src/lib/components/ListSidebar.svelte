@@ -246,6 +246,11 @@
 		flex-direction: column;
 		gap: var(--space-4);
 		height: 100vh;
+		position: sticky;
+		top: 0;
+		/* Flex children stretch by default, which would make the sidebar as tall as
+		   the scrolling content and leave nothing for sticky to pin against. */
+		align-self: flex-start;
 	}
 
 	.brand {
@@ -462,17 +467,6 @@
 		background: rgba(0, 0, 0, 0.4);
 		z-index: 150;
 		animation: fade-in 150ms var(--ease);
-	}
-
-	@media (min-width: 769px) {
-		.sidebar {
-			border: 1px solid var(--border);
-			border-radius: var(--radius);
-			box-shadow: var(--shadow-sm);
-			height: calc(100vh - var(--space-6) * 2);
-			position: sticky;
-			top: var(--space-6);
-		}
 	}
 
 	@media (max-width: 768px) {
