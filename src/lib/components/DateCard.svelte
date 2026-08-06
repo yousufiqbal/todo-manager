@@ -7,6 +7,7 @@
 		type Todo
 	} from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
+	import { autosize } from '$lib/actions/autosize.js';
 	import { todayLocalStr } from '$lib/date.js';
 
 	let { date, todos }: { date: string; todos: Todo[] } = $props();
@@ -41,6 +42,11 @@
 			editTodoTitle(editingId, editingTitle.trim());
 		}
 		editingId = null;
+	}
+
+	function cancelEdit() {
+		editingId = null;
+		editingTitle = '';
 	}
 
 	function moveToToday(id: string) {
@@ -80,14 +86,25 @@
 					</span>
 				</label>
 				{#if editingId === todo.id}
-					<input
-						type="text"
+					<textarea
 						class="edit-input"
+						rows="1"
 						bind:value={editingTitle}
 						onblur={commitEdit}
-						onkeydown={(e) => e.key === 'Enter' && commitEdit()}
+						onkeydown={(e) => {
+							// Enter commits (matching the add-todo input); Shift+Enter
+							// inserts a newline for multi-line todos.
+							if (e.key === 'Enter' && !e.shiftKey) {
+								e.preventDefault();
+								commitEdit();
+							} else if (e.key === 'Escape') {
+								e.preventDefault();
+								cancelEdit();
+							}
+						}}
 						use:autofocus
-					/>
+						use:autosize
+					></textarea>
 				{:else}
 					<button type="button" class="title" ondblclick={() => startEdit(todo)}>{todo.title}</button>
 				{/if}
@@ -230,6 +247,7 @@
 
 	.title {
 		flex: 1;
+		min-width: 0;
 		text-align: left;
 		background: transparent;
 		border: none;
@@ -237,6 +255,10 @@
 		color: inherit;
 		font: inherit;
 		cursor: pointer;
+		/* Buttons collapse whitespace by default, which would flatten a
+		   multi-line todo onto one line. */
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 		transition: color 150ms var(--ease);
 	}
 
@@ -245,8 +267,30 @@
 		color: var(--fg-subtle);
 	}
 
+	/* Mirrors the global input styling — app.css only targets input[type=...],
+	   so a textarea gets none of it. */
 	.edit-input {
 		flex: 1;
+		min-width: 0;
+		font: inherit;
+		color: var(--fg);
+		background: var(--bg-elevated);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		padding: 6px 10px;
+		outline: none;
+		/* Height is driven by the autosize action; both of these keep the browser
+		   from adding its own scrollbar or drag handle. */
+		resize: none;
+		overflow: hidden;
+		transition:
+			border-color 150ms var(--ease),
+			box-shadow 150ms var(--ease);
+	}
+
+	.edit-input:focus-visible {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
 	}
 
 	.options {
