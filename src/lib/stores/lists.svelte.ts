@@ -1,6 +1,7 @@
 export interface List {
 	id: string;
 	name: string;
+	description: string;
 	created_at: number;
 	sort_order: number;
 	pending_count: number;
@@ -59,11 +60,12 @@ function nextSortOrder() {
 	return listsState.items.length > 0 ? Math.max(...listsState.items.map((l) => l.sort_order)) + 1 : 0;
 }
 
-export function addList(name: string) {
+export function addList(name: string, description = '') {
 	const tempId = `temp-${crypto.randomUUID()}`;
 	const list: List = {
 		id: tempId,
 		name,
+		description,
 		created_at: Date.now(),
 		sort_order: nextSortOrder(),
 		pending_count: 0
@@ -74,7 +76,7 @@ export function addList(name: string) {
 	fetch('/api/lists', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ name })
+		body: JSON.stringify({ name, description })
 	})
 		.then(async (res) => {
 			if (!res.ok) throw new Error('failed');
@@ -96,23 +98,24 @@ export function addSeparator() {
 	addList(SEPARATOR_NAME);
 }
 
-export function renameList(id: string, name: string) {
+export function updateList(id: string, name: string, description: string) {
 	const list = listsState.items.find((l) => l.id === id);
 	if (!list) return;
-	const prevName = list.name;
+	const prev = { name: list.name, description: list.description };
 	list.name = name;
+	list.description = description;
+
+	const rollback = () => Object.assign(list, prev);
 
 	fetch(`/api/lists/${id}`, {
 		method: 'PATCH',
 		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({ name })
+		body: JSON.stringify({ name, description })
 	})
 		.then((res) => {
-			if (!res.ok) list.name = prevName;
+			if (!res.ok) rollback();
 		})
-		.catch(() => {
-			list.name = prevName;
-		});
+		.catch(rollback);
 }
 
 export function removeList(id: string) {

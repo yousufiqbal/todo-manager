@@ -3,15 +3,28 @@ import { db } from '$lib/server/db.js';
 import type { RequestHandler } from './$types';
 
 export const PATCH: RequestHandler = async ({ params, request }) => {
-	const { name } = await request.json();
-	if (!name || !name.trim()) {
-		return json({ error: 'name required' }, { status: 400 });
+	const body = await request.json();
+	const sets: string[] = [];
+	const args: string[] = [];
+
+	if ('name' in body) {
+		if (!body.name || !body.name.trim()) {
+			return json({ error: 'name cannot be empty' }, { status: 400 });
+		}
+		sets.push('name = ?');
+		args.push(body.name.trim());
+	}
+	// Absent means "leave alone"; an empty string is a valid way to clear it.
+	if ('description' in body) {
+		sets.push('description = ?');
+		args.push(typeof body.description === 'string' ? body.description.trim() : '');
+	}
+	if (sets.length === 0) {
+		return json({ error: 'no fields to update' }, { status: 400 });
 	}
 
-	await db.execute({
-		sql: 'UPDATE lists SET name = ? WHERE id = ?',
-		args: [name.trim(), params.id]
-	});
+	args.push(params.id);
+	await db.execute({ sql: `UPDATE lists SET ${sets.join(', ')} WHERE id = ?`, args });
 
 	return json({ ok: true });
 };

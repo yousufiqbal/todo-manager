@@ -381,6 +381,12 @@ input[type='date']:focus-visible {
 	width: 100%;
 }
 
+.modal .field-label .optional {
+	font-weight: 400;
+	font-size: 11px;
+	color: var(--fg-subtle);
+}
+
 .modal .field-label strong {
 	color: var(--fg);
 }

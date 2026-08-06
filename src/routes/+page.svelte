@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { fly, fade, scale } from 'svelte/transition';
-	import { listsState, hydrateLists, renameList, removeList } from '$lib/stores/lists.svelte.js';
+	import { listsState, hydrateLists, updateList, removeList } from '$lib/stores/lists.svelte.js';
 	import {
 		todosState,
 		hydrateAllTodos,
@@ -77,6 +77,7 @@
 	let showOptions = $state(false);
 	let showRenameModal = $state(false);
 	let renameValue = $state('');
+	let renameDescription = $state('');
 	let showDeleteModal = $state(false);
 	let deleteConfirmText = $state('');
 	let deleteConfirmValid = $derived(deleteConfirmText.trim().toLowerCase() === 'delete');
@@ -94,6 +95,7 @@
 	function openRenameModal() {
 		if (!selectedList) return;
 		renameValue = selectedList.name;
+		renameDescription = selectedList.description ?? '';
 		showRenameModal = true;
 		showOptions = false;
 	}
@@ -101,12 +103,13 @@
 	function closeRenameModal() {
 		showRenameModal = false;
 		renameValue = '';
+		renameDescription = '';
 	}
 
 	function submitRename(e: SubmitEvent) {
 		e.preventDefault();
 		if (!selectedList || !renameValue.trim()) return;
-		renameList(selectedList.id, renameValue.trim());
+		updateList(selectedList.id, renameValue.trim(), renameDescription.trim());
 		closeRenameModal();
 	}
 
@@ -150,10 +153,15 @@
 	<main>
 		<header>
 			{#key selectedList?.id}
-				<div class="title-row" in:fly|global={{ y: 10, duration: 250 }}>
-					<h1>{selectedList ? selectedList.name : 'Select a list'}</h1>
-					{#if selectedList && selectedList.pending_count > 0}
-						<span class="count-pill">{selectedList.pending_count}</span>
+				<div class="title-block" in:fly|global={{ y: 10, duration: 250 }}>
+					<div class="title-row">
+						<h1>{selectedList ? selectedList.name : 'Select a list'}</h1>
+						{#if selectedList && selectedList.pending_count > 0}
+							<span class="count-pill">{selectedList.pending_count}</span>
+						{/if}
+					</div>
+					{#if selectedList?.description}
+						<p class="list-description">{selectedList.description}</p>
 					{/if}
 				</div>
 			{/key}
@@ -171,7 +179,7 @@
 								</button>
 								<button class="popover-item" onclick={openRenameModal}>
 									<svg class="icon" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
-									Rename list
+									Edit list
 								</button>
 								<button class="popover-delete" onclick={openDeleteModal}>
 									<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
@@ -242,10 +250,14 @@
 	<div class="modal-backdrop" onclick={closeRenameModal} role="presentation" transition:fade={{ duration: 150 }}>
 		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="rename-title" tabindex="-1" transition:scale={{ duration: 180, start: 0.96 }}>
 			<form onsubmit={submitRename}>
-				<h2 id="rename-title">Rename list</h2>
+				<h2 id="rename-title">Edit list</h2>
 				<label class="field-label">
 					List name
 					<input type="text" bind:value={renameValue} autocomplete="off" use:autofocus />
+				</label>
+				<label class="field-label">
+					Description <span class="optional">optional</span>
+					<input type="text" bind:value={renameDescription} placeholder="Short subheading for this list" autocomplete="off" />
 				</label>
 				<div class="modal-actions">
 					<button type="button" class="btn-secondary" onclick={closeRenameModal}>Cancel</button>
@@ -300,15 +312,29 @@
 
 	header {
 		display: flex;
-		align-items: center;
+		/* flex-start so the options button stays level with the title rather than
+		   drifting down when a description is present. */
+		align-items: flex-start;
 		justify-content: space-between;
+		gap: var(--space-3);
 		margin-bottom: var(--space-1);
+	}
+
+	.title-block {
+		min-width: 0;
 	}
 
 	.title-row {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
+	}
+
+	.list-description {
+		margin: 2px 0 0;
+		font-size: 13px;
+		color: var(--fg-muted);
+		line-height: 1.5;
 	}
 
 	h1 {

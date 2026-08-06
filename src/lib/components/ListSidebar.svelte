@@ -17,6 +17,7 @@
 
 	let showAddModal = $state(false);
 	let newListName = $state('');
+	let newListDescription = $state('');
 	let showSortModal = $state(false);
 	let showListMenu = $state(false);
 	let showMoveAllModal = $state(false);
@@ -68,18 +69,20 @@
 
 	function openAddModal() {
 		newListName = '';
+		newListDescription = '';
 		showAddModal = true;
 	}
 
 	function closeAddModal() {
 		showAddModal = false;
 		newListName = '';
+		newListDescription = '';
 	}
 
 	function submitAdd(e: SubmitEvent) {
 		e.preventDefault();
 		if (!newListName.trim()) return;
-		addList(newListName.trim());
+		addList(newListName.trim(), newListDescription.trim());
 		closeAddModal();
 	}
 
@@ -250,6 +253,10 @@
 				<label class="field-label">
 					List name
 					<input type="text" bind:value={newListName} placeholder="e.g. Work" autocomplete="off" use:autofocus />
+				</label>
+				<label class="field-label">
+					Description <span class="optional">optional</span>
+					<input type="text" bind:value={newListDescription} placeholder="Short subheading for this list" autocomplete="off" />
 				</label>
 				<div class="modal-actions">
 					<button type="button" class="btn-secondary" onclick={closeAddModal}>Cancel</button>

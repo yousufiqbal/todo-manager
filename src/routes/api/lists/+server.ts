@@ -15,20 +15,28 @@ export const GET: RequestHandler = async () => {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-	const { name } = await request.json();
+	const { name, description } = await request.json();
 	if (!name || !name.trim()) {
 		return json({ error: 'name required' }, { status: 400 });
 	}
 
 	const id = randomUUID();
 	const created_at = Date.now();
+	const desc = typeof description === 'string' ? description.trim() : '';
 	const maxOrderResult = await db.execute('SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM lists');
 	const sortOrder = Number(maxOrderResult.rows[0].max_order) + 1;
 
 	await db.execute({
-		sql: 'INSERT INTO lists (id, name, created_at, sort_order) VALUES (?, ?, ?, ?)',
-		args: [id, name.trim(), created_at, sortOrder]
+		sql: 'INSERT INTO lists (id, name, description, created_at, sort_order) VALUES (?, ?, ?, ?, ?)',
+		args: [id, name.trim(), desc, created_at, sortOrder]
 	});
 
-	return json({ id, name: name.trim(), created_at, sort_order: sortOrder, pending_count: 0 });
+	return json({
+		id,
+		name: name.trim(),
+		description: desc,
+		created_at,
+		sort_order: sortOrder,
+		pending_count: 0
+	});
 };
