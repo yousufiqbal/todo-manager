@@ -186,6 +186,45 @@ export function moveTodoDate(id: string, date: string) {
 	patchTodo(id, { date }, ['date']);
 }
 
+/**
+ * Moves every pending todo in *every* list to today. Done server-side in one
+ * statement rather than looping moveTodoDate, which would fire one request per
+ * todo. Pending counts are untouched — shifting a date doesn't change `done`.
+ */
+export function moveAllPendingToTodayEverywhere() {
+	const today = todayLocalStr();
+
+	const prevCache = new Map([...todosCache].map(([id, todos]) => [id, todos.map((t) => ({ ...t }))]));
+
+	for (const todo of todosState.items) {
+		if (!todo.done) todo.date = today;
+	}
+	for (const [id, todos] of todosCache) {
+		todosCache.set(
+			id,
+			todos.map((t) => (t.done ? t : { ...t, date: today }))
+		);
+	}
+	if (todosState.loadedForListId) syncCache(todosState.loadedForListId);
+
+	fetch('/api/todos/move-all-today', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ date: today })
+	})
+		.then((res) => {
+			if (!res.ok) throw new Error('failed');
+		})
+		.catch(() => {
+			// Rebuild live items from the restored cache rather than a captured
+			// array, so a list switch mid-flight still lands on the right data.
+			todosCache.clear();
+			for (const [id, todos] of prevCache) todosCache.set(id, todos);
+			const live = todosState.loadedForListId;
+			if (live) todosState.items = todosCache.get(live) ?? [];
+		});
+}
+
 export function moveAllPendingToToday(listId: string) {
 	const today = todayLocalStr();
 	const pendingIds = todosState.items

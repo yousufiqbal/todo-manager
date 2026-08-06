@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { fade, scale } from 'svelte/transition';
 	import { listsState, selectList, addList, removeList, reorderLists } from '$lib/stores/lists.svelte.js';
+	import { moveAllPendingToTodayEverywhere } from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
 
 	let { open = false, onClose }: { open?: boolean; onClose?: () => void } = $props();
@@ -9,6 +10,38 @@
 	let showAddModal = $state(false);
 	let newListName = $state('');
 	let showSortModal = $state(false);
+	let showListMenu = $state(false);
+	let showMoveAllModal = $state(false);
+
+	function toggleListMenu() {
+		showListMenu = !showListMenu;
+	}
+
+	function closeListMenu(e: MouseEvent) {
+		if (showListMenu && !(e.target as HTMLElement).closest('.list-menu')) {
+			showListMenu = false;
+		}
+	}
+
+	function handleNewList() {
+		showListMenu = false;
+		openAddModal();
+	}
+
+	function handleSortLists() {
+		showListMenu = false;
+		showSortModal = true;
+	}
+
+	function handleMoveAllToday() {
+		showListMenu = false;
+		showMoveAllModal = true;
+	}
+
+	function confirmMoveAllToday() {
+		moveAllPendingToTodayEverywhere();
+		showMoveAllModal = false;
+	}
 
 	let listsLoadingVisible = $state(false);
 	$effect(() => {
@@ -123,13 +156,26 @@
 <aside class="sidebar" class:open>
 	<div class="section-header">
 		<h2>Lists</h2>
-		<div class="section-header-actions">
-			<button class="btn-ghost" onclick={() => (showSortModal = true)} aria-label="Sort lists" title="Sort lists">
-				<svg class="icon" viewBox="0 0 24 24"><path d="M11 5h10" /><path d="M11 9h7" /><path d="M11 13h4" /><path d="M3 17l3 3 3-3" /><path d="M6 18V4" /></svg>
+		<div class="list-menu">
+			<button class="btn-ghost" onclick={toggleListMenu} aria-label="List options" title="List options">
+				<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="12" cy="19" r="1.4" /></svg>
 			</button>
-			<button class="btn-ghost" onclick={openAddModal} aria-label="Add list" title="Add list">
-				<svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
-			</button>
+			{#if showListMenu}
+				<div class="popover card">
+					<button class="popover-item" onclick={handleNewList}>
+						<svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+						New list
+					</button>
+					<button class="popover-item" onclick={handleSortLists}>
+						<svg class="icon" viewBox="0 0 24 24"><path d="M11 5h10" /><path d="M11 9h7" /><path d="M11 13h4" /><path d="M3 17l3 3 3-3" /><path d="M6 18V4" /></svg>
+						Sort lists
+					</button>
+					<button class="popover-item" onclick={handleMoveAllToday}>
+						<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
+						Move All Today
+					</button>
+				</div>
+			{/if}
 		</div>
 	</div>
 
@@ -173,10 +219,13 @@
 </aside>
 
 <svelte:window
+	onclick={closeListMenu}
 	onkeydown={(e) => {
 		if (e.key !== 'Escape') return;
 		if (showAddModal) closeAddModal();
+		else if (showMoveAllModal) showMoveAllModal = false;
 		else if (showSortModal) showSortModal = false;
+		else if (showListMenu) showListMenu = false;
 		else if (open) onClose?.();
 	}}
 />
@@ -195,6 +244,22 @@
 					<button type="submit" class="btn" disabled={!newListName.trim()}>Create list</button>
 				</div>
 			</form>
+		</div>
+	</div>
+{/if}
+
+{#if showMoveAllModal}
+	<div class="modal-backdrop" onclick={() => (showMoveAllModal = false)} role="presentation" transition:fade={{ duration: 150 }}>
+		<div class="modal card" onclick={(e) => e.stopPropagation()} onkeydown={() => {}} role="dialog" aria-modal="true" aria-labelledby="move-all-title" tabindex="-1" transition:scale={{ duration: 180, start: 0.96 }}>
+			<h2 id="move-all-title">Move all to today</h2>
+			<p class="modal-text">
+				Every pending todo across all lists will be moved to today. Completed todos stay where
+				they are.
+			</p>
+			<div class="modal-actions">
+				<button type="button" class="btn-secondary" onclick={() => (showMoveAllModal = false)}>Cancel</button>
+				<button type="button" class="btn" onclick={confirmMoveAllToday}>Move all</button>
+			</div>
 		</div>
 	</div>
 {/if}
@@ -256,7 +321,7 @@
 	.brand {
 		display: flex;
 		align-items: center;
-		gap: var(--space-3);
+		gap: var(--space-2);
 		margin-top: var(--space-3);
 		padding: var(--space-3) var(--space-3) 0;
 		border-top: 1px solid var(--border);
@@ -271,22 +336,23 @@
 	}
 
 	.brand-title {
-		font-weight: 600;
-		font-size: 15px;
+		font-weight: 500;
+		font-size: 12px;
+		color: var(--fg-muted);
 	}
 
 	.brand-subtitle {
 		font-weight: 400;
-		font-size: 11px;
+		font-size: 10px;
 		color: var(--fg-subtle);
 	}
 
 	.logo {
-		width: 36px;
-		height: 36px;
+		width: 20px;
+		height: 20px;
 		flex-shrink: 0;
-		stroke-width: 2.2;
-		color: var(--fg);
+		stroke-width: 2;
+		color: var(--fg-subtle);
 	}
 
 	.section-header {
@@ -304,10 +370,15 @@
 		margin: 0;
 	}
 
-	.section-header-actions {
-		display: flex;
-		align-items: center;
-		gap: 2px;
+	.list-menu {
+		position: relative;
+	}
+
+	.modal-text {
+		margin: 0 0 var(--space-4);
+		font-size: 13px;
+		color: var(--fg-muted);
+		line-height: 1.6;
 	}
 
 	.sort-list {
