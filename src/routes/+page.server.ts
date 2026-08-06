@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db.js';
-import type { List } from '$lib/stores/lists.svelte.js';
+import { isSeparator, type List } from '$lib/stores/lists.svelte.js';
 import type { Todo } from '$lib/stores/todos.svelte.js';
 import type { PageServerLoad } from './$types';
 
@@ -27,8 +27,9 @@ export const load: PageServerLoad = async ({ url }) => {
 	}
 
 	const requestedId = url.searchParams.get('list');
-	const requestedIsValid = requestedId && lists.some((l) => l.id === requestedId);
-	const selectedListId = (requestedIsValid ? requestedId : lists[0]?.id) ?? null;
+	const selectable = lists.filter((l) => !isSeparator(l));
+	const requestedIsValid = requestedId && selectable.some((l) => l.id === requestedId);
+	const selectedListId = (requestedIsValid ? requestedId : selectable[0]?.id) ?? null;
 
 	return { lists, todosByList, selectedListId };
 };

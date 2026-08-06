@@ -6,18 +6,35 @@ export interface List {
 	pending_count: number;
 }
 
+/**
+ * A list row whose name is exactly this is rendered as a divider rather than a
+ * selectable list. Using a sentinel name keeps separators entirely inside the
+ * existing `lists` table — no extra column, endpoint, or migration — so the
+ * create, drag-reorder and delete paths work on them unchanged.
+ */
+export const SEPARATOR_NAME = '---';
+
+export function isSeparator(list: List) {
+	return list.name === SEPARATOR_NAME;
+}
+
 export const listsState = $state<{ items: List[]; selectedId: string | null; loaded: boolean }>({
 	items: [],
 	selectedId: null,
 	loaded: false
 });
 
+/** Separators can never be the selected list, so fall back past them. */
+function firstSelectableId() {
+	return listsState.items.find((l) => !isSeparator(l))?.id ?? null;
+}
+
 export async function loadLists() {
 	const res = await fetch('/api/lists');
 	if (res.ok) {
 		listsState.items = await res.json();
 		if (!listsState.selectedId) {
-			listsState.selectedId = listsState.items[0]?.id ?? null;
+			listsState.selectedId = firstSelectableId();
 		}
 	}
 	listsState.loaded = true;
@@ -52,7 +69,7 @@ export function addList(name: string) {
 		pending_count: 0
 	};
 	listsState.items.push(list);
-	if (!listsState.selectedId) listsState.selectedId = tempId;
+	if (!listsState.selectedId && name !== SEPARATOR_NAME) listsState.selectedId = tempId;
 
 	fetch('/api/lists', {
 		method: 'POST',
@@ -69,9 +86,14 @@ export function addList(name: string) {
 		.catch(() => {
 			listsState.items = listsState.items.filter((l) => l.id !== tempId);
 			if (listsState.selectedId === tempId) {
-				listsState.selectedId = listsState.items[0]?.id ?? null;
+				listsState.selectedId = firstSelectableId();
 			}
 		});
+}
+
+/** Appends a divider. It's just a list row, so reorder/delete need no special casing. */
+export function addSeparator() {
+	addList(SEPARATOR_NAME);
 }
 
 export function renameList(id: string, name: string) {
@@ -98,7 +120,7 @@ export function removeList(id: string) {
 	if (idx === -1) return;
 	const [removed] = listsState.items.splice(idx, 1);
 	if (listsState.selectedId === id) {
-		listsState.selectedId = listsState.items[0]?.id ?? null;
+		listsState.selectedId = firstSelectableId();
 	}
 
 	// fetch only rejects on network failure, so a 401/500 must be turned into a
