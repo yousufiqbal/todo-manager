@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { fly, fade, scale } from 'svelte/transition';
-	import { listsState, hydrateLists, updateList, removeList } from '$lib/stores/lists.svelte.js';
+	import {
+		listsState,
+		hydrateLists,
+		updateList,
+		removeList,
+		isSeparator
+	} from '$lib/stores/lists.svelte.js';
 	import {
 		todosState,
 		hydrateAllTodos,
@@ -73,7 +79,13 @@
 		for (const todo of todosState.items) {
 			if (todo.date !== today) continue;
 			if (!map.has(todo.list_id)) {
-				map.set(todo.list_id, { name: todo.list_name ?? 'Untitled list', todos: [] });
+				// Prefer the live lists store over the name the fetch embedded: a todo
+				// just added here has no `list_name`, and renames land there first.
+				const name =
+					listsState.items.find((l) => l.id === todo.list_id)?.name ??
+					todo.list_name ??
+					'Untitled list';
+				map.set(todo.list_id, { name, todos: [] });
 			}
 			map.get(todo.list_id)!.todos.push(todo);
 		}
@@ -194,7 +206,9 @@
 			{#key todayView ? TODAY_VIEW_ID : selectedList?.id}
 				<div class="title-block" in:fly|global={{ y: 10, duration: 250 }}>
 					<div class="title-row">
-						<h1>{todayView ? 'Today' : (selectedList ? selectedList.name : 'Select a list')}</h1>
+						<h1 class:today={todayView}>
+						{todayView ? 'Today' : (selectedList ? selectedList.name : 'Select a list')}
+					</h1>
 						{#if todayView}
 							{#if todayPendingCount > 0}
 								<span class="count-pill">{todayPendingCount}</span>
@@ -247,6 +261,10 @@
 				</div>
 			{/if}
 		{:else if todayView}
+			{#if listsState.items.some((l) => !isSeparator(l))}
+				<TodoInput todayMode />
+			{/if}
+
 			{#if todosState.loadedForListId !== TODAY_VIEW_ID}
 				{#if todosLoadingVisible}
 					<div class="loading-state">
@@ -407,6 +425,11 @@
 		font-size: 20px;
 		font-weight: 600;
 		margin: 0;
+	}
+
+	/* Same accent the date cards use to mark today. */
+	h1.today {
+		color: var(--warning);
 	}
 
 	.header-actions {
