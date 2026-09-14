@@ -6,12 +6,15 @@
 		todosState,
 		hydrateAllTodos,
 		loadTodos,
+		loadTodayTodos,
+		TODAY_VIEW_ID,
 		undoState,
 		undoRemoveTodo,
 		moveAllPendingToToday,
 		type Todo
 	} from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
+	import { todayLocalStr } from '$lib/date.js';
 	import ListSidebar from '$lib/components/ListSidebar.svelte';
 	import TodoInput from '$lib/components/TodoInput.svelte';
 	import DateCard from '$lib/components/DateCard.svelte';
@@ -20,20 +23,32 @@
 	let { data }: { data: PageData } = $props();
 
 	untrack(() => {
-		hydrateLists(data.lists, data.selectedListId);
+		hydrateLists(data.lists, data.selectedListId, data.initialView);
 		hydrateAllTodos(data.todosByList, data.selectedListId);
 	});
 
+	let todayView = $derived(listsState.view === 'today');
+	let today = $state(todayLocalStr());
+
 	$effect(() => {
-		loadTodos(listsState.selectedId);
+		if (listsState.view === 'today') loadTodayTodos(today);
+		else loadTodos(listsState.selectedId);
 	});
 
 	$effect(() => {
+		if (typeof window === 'undefined') return;
 		const id = listsState.selectedId;
-		if (!id || typeof window === 'undefined') return;
+		const view = listsState.view;
 		const url = new URL(window.location.href);
-		if (url.searchParams.get('list') === id) return;
-		url.searchParams.set('list', id);
+		if (view === 'today') {
+			if (url.searchParams.get('view') === 'today') return;
+			url.searchParams.set('view', 'today');
+		} else {
+			if (!id) return;
+			if (url.searchParams.get('list') === id && !url.searchParams.has('view')) return;
+			url.searchParams.delete('view');
+			url.searchParams.set('list', id);
+		}
 		// Raw history API (not SvelteKit's `goto`/`replaceState`) so switching lists never
 		// re-runs +page.server.ts's load, and has no dependency on router init timing.
 		window.history.replaceState(window.history.state, '', url);
@@ -47,6 +62,27 @@
 		}
 		return [...map.entries()].sort(([a], [b]) => b.localeCompare(a));
 	});
+
+	/**
+	 * Today view cards are one (list, date) group each — the same shape a date card
+	 * already is — so drag-reorder and Shift To keep working per card. A todo shifted
+	 * off today drops out here, matching what the next load would return.
+	 */
+	let groupedByList = $derived.by(() => {
+		const map = new Map<string, { name: string; todos: Todo[] }>();
+		for (const todo of todosState.items) {
+			if (todo.date !== today) continue;
+			if (!map.has(todo.list_id)) {
+				map.set(todo.list_id, { name: todo.list_name ?? 'Untitled list', todos: [] });
+			}
+			map.get(todo.list_id)!.todos.push(todo);
+		}
+		return [...map.entries()];
+	});
+
+	let todayPendingCount = $derived(
+		todosState.items.filter((t) => t.date === today && !t.done).length
+	);
 
 	let selectedList = $derived(listsState.items.find((l) => l.id === listsState.selectedId));
 
@@ -64,7 +100,10 @@
 
 	let todosLoadingVisible = $state(false);
 	$effect(() => {
-		if (!selectedList || todosState.loadedForListId === selectedList.id) {
+		const ready = todayView
+			? todosState.loadedForListId === TODAY_VIEW_ID
+			: !selectedList || todosState.loadedForListId === selectedList.id;
+		if (ready) {
 			todosLoadingVisible = false;
 			return;
 		}
@@ -152,21 +191,27 @@
 
 	<main>
 		<header>
-			{#key selectedList?.id}
+			{#key todayView ? TODAY_VIEW_ID : selectedList?.id}
 				<div class="title-block" in:fly|global={{ y: 10, duration: 250 }}>
 					<div class="title-row">
-						<h1>{selectedList ? selectedList.name : 'Select a list'}</h1>
-						{#if selectedList && selectedList.pending_count > 0}
+						<h1>{todayView ? 'Today' : (selectedList ? selectedList.name : 'Select a list')}</h1>
+						{#if todayView}
+							{#if todayPendingCount > 0}
+								<span class="count-pill">{todayPendingCount}</span>
+							{/if}
+						{:else if selectedList && selectedList.pending_count > 0}
 							<span class="count-pill">{selectedList.pending_count}</span>
 						{/if}
 					</div>
-					{#if selectedList?.description}
+					{#if todayView}
+						<p class="list-description">Everything due today, across all lists.</p>
+					{:else if selectedList?.description}
 						<p class="list-description">{selectedList.description}</p>
 					{/if}
 				</div>
 			{/key}
 			<div class="header-actions">
-				{#if selectedList}
+				{#if selectedList && !todayView}
 					<div class="list-options">
 						<button class="btn-ghost" onclick={toggleOptions} aria-label="List options" title="List options">
 							<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="12" cy="19" r="1.4" /></svg>
@@ -199,6 +244,27 @@
 			{#if listsLoadingVisible}
 				<div class="loading-state">
 					<div class="spinner"></div>
+				</div>
+			{/if}
+		{:else if todayView}
+			{#if todosState.loadedForListId !== TODAY_VIEW_ID}
+				{#if todosLoadingVisible}
+					<div class="loading-state">
+						<div class="spinner"></div>
+					</div>
+				{/if}
+			{:else}
+				<div class="cards">
+					{#each groupedByList as [listId, group] (listId)}
+						<DateCard date={today} todos={group.todos} heading={group.name} />
+					{/each}
+					{#if groupedByList.length === 0}
+						<div class="empty-state">
+							<svg class="icon" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+							<p>Nothing due today</p>
+							<span>Todos dated today show up here, from every list.</span>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		{:else if listsState.items.length === 0}

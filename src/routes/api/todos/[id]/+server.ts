@@ -26,6 +26,17 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		}
 		sets.push('date = ?');
 		args.push(body.date);
+		// sort_order is scoped to a date group, so a value carried over from the old
+		// date means nothing in the new one. Re-slot at the top, where the client's
+		// optimistic move also puts it.
+		sets.push(
+			`sort_order = COALESCE(
+				(SELECT MIN(t.sort_order) - 1 FROM todos AS t
+					WHERE t.list_id = todos.list_id AND t.date = ?),
+				0
+			)`
+		);
+		args.push(body.date);
 	}
 	if (sets.length === 0) {
 		return json({ error: 'no fields to update' }, { status: 400 });

@@ -4,14 +4,21 @@
 	import {
 		listsState,
 		selectList,
+		selectTodayView,
 		addList,
 		addSeparator,
 		removeList,
 		reorderLists,
 		isSeparator
 	} from '$lib/stores/lists.svelte.js';
-	import { moveAllPendingToTodayEverywhere } from '$lib/stores/todos.svelte.js';
+	import {
+		moveAllPendingToTodayEverywhere,
+		pendingCountForDate
+	} from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
+	import { todayLocalStr } from '$lib/date.js';
+
+	let todayPendingCount = $derived(pendingCountForDate(todayLocalStr()));
 
 	let { open = false, onClose }: { open?: boolean; onClose?: () => void } = $props();
 
@@ -64,6 +71,11 @@
 
 	function handleSelect(id: string) {
 		selectList(id);
+		onClose?.();
+	}
+
+	function handleSelectToday() {
+		selectTodayView();
 		onClose?.();
 	}
 
@@ -191,6 +203,18 @@
 	</div>
 
 	<div class="list-area">
+		<button
+			class="today-btn"
+			class:active={listsState.view === 'today'}
+			onclick={handleSelectToday}
+		>
+			<span class="list-name">Today</span>
+			{#if todayPendingCount > 0}
+				<span class="count-pill">{todayPendingCount}</span>
+			{/if}
+		</button>
+		<hr class="today-divider" />
+
 		{#if !listsState.loaded}
 			{#if listsLoadingVisible}
 				<div class="sidebar-loading">
@@ -203,7 +227,7 @@
 					{#if isSeparator(list)}
 						<li class="separator" aria-hidden="true"><hr /></li>
 					{:else}
-						<li class:active={list.id === listsState.selectedId}>
+						<li class:active={listsState.view === 'list' && list.id === listsState.selectedId}>
 							<button class="list-btn" onclick={() => handleSelect(list.id)}>
 								<span class="list-name">{list.name}</span>
 								{#if list.pending_count > 0}
@@ -527,6 +551,47 @@
 		flex-direction: column;
 		gap: 2px;
 		overflow-y: auto;
+	}
+
+	.today-btn {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		width: 100%;
+		text-align: left;
+		background: transparent;
+		border: none;
+		padding: 8px 10px;
+		margin-bottom: var(--space-2);
+		border-radius: var(--radius-sm);
+		color: var(--fg-muted);
+		font-weight: 500;
+		transition:
+			background-color 150ms var(--ease),
+			color 150ms var(--ease);
+	}
+
+	.today-divider {
+		border: none;
+		border-top: 1px solid var(--border-hover);
+		margin: 0 var(--space-2) var(--space-2);
+	}
+
+	.today-btn:hover {
+		background: var(--bg-hover);
+		color: var(--fg);
+	}
+
+	.today-btn.active {
+		background: var(--fg-solid);
+		box-shadow: var(--shadow-sm);
+		color: #fff;
+		font-weight: 600;
+	}
+
+	.today-btn.active .count-pill {
+		color: #fff;
+		background: rgba(255, 255, 255, 0.18);
 	}
 
 	li {

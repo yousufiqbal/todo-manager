@@ -21,7 +21,8 @@ await db.batch(
 			title TEXT NOT NULL,
 			done INTEGER NOT NULL DEFAULT 0,
 			date TEXT NOT NULL,
-			created_at INTEGER NOT NULL
+			created_at INTEGER NOT NULL,
+			sort_order INTEGER NOT NULL DEFAULT 0
 		)`
 	],
 	'write'
@@ -33,6 +34,21 @@ const todoColumns = await db.execute('PRAGMA table_info(todos)');
 if (todoColumns.rows.some((row) => row.name === 'note')) {
 	await db.execute('ALTER TABLE todos DROP COLUMN note');
 	console.log('Dropped unused `note` column from todos.');
+}
+
+if (!todoColumns.rows.some((row) => row.name === 'sort_order')) {
+	await db.execute('ALTER TABLE todos ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
+	// sort_order is scoped to a (list_id, date) group — the todos shown in one date
+	// card. Backfill by the previous display order (newest first) so nothing jumps.
+	await db.execute(`
+		UPDATE todos SET sort_order = (
+			SELECT COUNT(*) FROM todos AS t2
+			WHERE t2.list_id = todos.list_id AND t2.date = todos.date
+				AND (t2.created_at > todos.created_at
+					OR (t2.created_at = todos.created_at AND t2.id <= todos.id))
+		)
+	`);
+	console.log('Added missing `sort_order` column to todos and backfilled by creation order.');
 }
 
 const listColumns = await db.execute('PRAGMA table_info(lists)');

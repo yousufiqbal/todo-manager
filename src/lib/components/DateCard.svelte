@@ -4,21 +4,35 @@
 		editTodoTitle,
 		moveTodoDate,
 		removeTodo,
+		reorderTodos,
 		type Todo
 	} from '$lib/stores/todos.svelte.js';
 	import { autofocus } from '$lib/actions/focus.js';
 	import { autosize } from '$lib/actions/autosize.js';
 	import { todayLocalStr } from '$lib/date.js';
 
-	let { date, todos }: { date: string; todos: Todo[] } = $props();
+	// `heading` overrides the date title — the Today view groups by list instead,
+	// where every card is the same date and the list name is the useful label.
+	let { date, todos, heading }: { date: string; todos: Todo[]; heading?: string } = $props();
 
 	// Pending before done. Array.prototype.sort is stable, so todos keep their
 	// existing created_at ordering within each group.
 	let sortedTodos = $derived([...todos].sort((a, b) => Number(a.done) - Number(b.done)));
 
+	function openDatePicker(node: HTMLInputElement) {
+		node.focus();
+		try {
+			node.showPicker?.();
+		} catch {
+			// showPicker requires transient user activation; if the browser
+			// rejects it here, the input is still focused and usable directly.
+		}
+	}
+
 	let editingId = $state<string | null>(null);
 	let editingTitle = $state('');
 	let openOptionsId = $state<string | null>(null);
+	let shiftingId = $state<string | null>(null);
 
 	function formatDate(d: string) {
 		const dt = new Date(`${d}T00:00:00`);
@@ -49,32 +63,126 @@
 		editingTitle = '';
 	}
 
-	function moveToToday(id: string) {
-		moveTodoDate(id, todayLocalStr());
+	function toggleOptions(id: string) {
+		openOptionsId = openOptionsId === id ? null : id;
+		shiftingId = null;
+	}
+
+	function startShift(id: string) {
+		shiftingId = id;
+	}
+
+	function commitShift(id: string, newDate: string) {
+		if (newDate) {
+			moveTodoDate(id, newDate);
+		}
+		shiftingId = null;
 		openOptionsId = null;
 	}
 
-	function toggleOptions(id: string) {
-		openOptionsId = openOptionsId === id ? null : id;
+	let dragId = $state<string | null>(null);
+	// Insertion point as an index into the *displayed* order: the todo lands
+	// immediately before sortedTodos[dropIndex] (== length means "at the end").
+	let dropIndex = $state<number | null>(null);
+	let dropLineY = $state(0);
+	let listEl = $state<HTMLUListElement | undefined>();
+
+	function handleDragStart(e: DragEvent, id: string) {
+		dragId = id;
+		e.dataTransfer?.setData('text/plain', id);
+		if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
 	}
 
+	/**
+	 * dragover lives on the <ul>, not each row: the indicator is an absolutely
+	 * positioned overlay, so it never reflows the rows out from under the cursor
+	 * (which would retrigger dragover on a different row and thrash the target).
+	 */
+	function handleDragOver(e: DragEvent) {
+		if (!dragId || !listEl) return;
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+
+		const rows = [...listEl.querySelectorAll<HTMLElement>('li[data-id]')];
+		if (rows.length === 0) return;
+
+		const listTop = listEl.getBoundingClientRect().top;
+
+		// Insert before the first row whose midpoint sits below the cursor.
+		let index = rows.length;
+		for (let i = 0; i < rows.length; i++) {
+			const rect = rows[i].getBoundingClientRect();
+			if (e.clientY < rect.top + rect.height / 2) {
+				index = i;
+				break;
+			}
+		}
+
+		dropIndex = index;
+		dropLineY =
+			index < rows.length
+				? rows[index].getBoundingClientRect().top - listTop - 1
+				: rows[rows.length - 1].getBoundingClientRect().bottom - listTop - 1;
+	}
+
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		if (!dragId || dropIndex === null) return resetDrag();
+
+		// Split the displayed order at the insertion point, drop the dragged id out
+		// of both halves, then rejoin around it — correct whether it moved up or down.
+		const ordered = sortedTodos.map((t) => t.id);
+		const before = ordered.slice(0, dropIndex).filter((id) => id !== dragId);
+		const after = ordered.slice(dropIndex).filter((id) => id !== dragId);
+		const next = [...before, dragId, ...after];
+
+		if (next.some((id, i) => id !== ordered[i])) reorderTodos(next);
+		resetDrag();
+	}
+
+	function resetDrag() {
+		dragId = null;
+		dropIndex = null;
+	}
+
+	// Capture phase: by the time a click bubbles back up here, a handler inside the
+	// popover may already have swapped its own element out of the DOM, and a
+	// detached target reports no `.options` ancestor.
 	function closeOptions(e: MouseEvent) {
 		if (openOptionsId && !(e.target as HTMLElement).closest('.options')) {
 			openOptionsId = null;
+			shiftingId = null;
 		}
 	}
 </script>
 
-<svelte:window onclick={closeOptions} />
+<svelte:window onclickcapture={closeOptions} />
 
 <section class="card date-card">
-	<h3 class:today={isToday(date)}>
-		{formatDate(date)}
-		{#if isToday(date)}<span class="today-badge">Today</span>{/if}
+	<h3 class:today={!heading && isToday(date)}>
+		{heading ?? formatDate(date)}
+		{#if !heading && isToday(date)}<span class="today-badge">Today</span>{/if}
 	</h3>
-	<ul>
+	<ul
+		bind:this={listEl}
+		ondragover={handleDragOver}
+		ondrop={handleDrop}
+		ondragend={resetDrag}
+		ondragleave={(e) => {
+			if (!e.relatedTarget || !listEl?.contains(e.relatedTarget as Node)) dropIndex = null;
+		}}
+	>
+		{#if dragId && dropIndex !== null}
+			<div class="drop-line" style="top: {dropLineY}px" aria-hidden="true"></div>
+		{/if}
 		{#each sortedTodos as todo (todo.id)}
-			<li class:done={!!todo.done}>
+			<li
+				data-id={todo.id}
+				draggable={editingId !== todo.id}
+				class:done={!!todo.done}
+				class:dragging={dragId === todo.id}
+				ondragstart={(e) => handleDragStart(e, todo.id)}
+			>
 				<label class="checkbox">
 					<input
 						type="checkbox"
@@ -115,10 +223,23 @@
 					</button>
 					{#if openOptionsId === todo.id}
 						<div class="popover card">
-							<button class="popover-item" onclick={() => moveToToday(todo.id)} disabled={isToday(todo.date)}>
-								<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
-								Move Today
-							</button>
+							{#if shiftingId === todo.id}
+								<label class="popover-date">
+									<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
+									<input
+										type="date"
+										value={todo.date}
+										use:openDatePicker
+										onchange={(e) => commitShift(todo.id, e.currentTarget.value)}
+										onclick={(e) => e.currentTarget.showPicker?.()}
+									/>
+								</label>
+							{:else}
+								<button class="popover-item" onclick={() => startShift(todo.id)}>
+									<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M3 10h18" /><path d="M8 2v4" /><path d="M16 2v4" /></svg>
+									Shift To
+								</button>
+							{/if}
 							<button class="popover-delete" onclick={() => removeTodo(todo.id)}>
 								<svg class="icon" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
 								Delete todo
@@ -170,6 +291,20 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1px;
+		position: relative;
+	}
+
+	/* Absolute overlay so showing the indicator never reflows the rows underneath
+	   the cursor (which would retrigger dragover and thrash the drop target). */
+	.drop-line {
+		position: absolute;
+		left: 0;
+		right: 0;
+		height: 2px;
+		border-radius: 1px;
+		background: var(--fg);
+		pointer-events: none;
+		z-index: 1;
 	}
 
 	li {
@@ -184,6 +319,10 @@
 
 	li:hover {
 		background: var(--bg-hover);
+	}
+
+	li.dragging {
+		opacity: 0.4;
 	}
 
 	.checkbox {
@@ -254,7 +393,7 @@
 		padding: 2px 0;
 		color: inherit;
 		font: inherit;
-		cursor: pointer;
+		cursor: grab;
 		/* Buttons collapse whitespace by default, which would flatten a
 		   multi-line todo onto one line. */
 		white-space: pre-wrap;

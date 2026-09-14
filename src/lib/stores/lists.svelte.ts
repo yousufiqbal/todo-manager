@@ -19,10 +19,17 @@ export function isSeparator(list: List) {
 	return list.name === SEPARATOR_NAME;
 }
 
-export const listsState = $state<{ items: List[]; selectedId: string | null; loaded: boolean }>({
+export const listsState = $state<{
+	items: List[];
+	selectedId: string | null;
+	loaded: boolean;
+	/** 'today' shows every list's todos for the current day instead of one list. */
+	view: 'list' | 'today';
+}>({
 	items: [],
 	selectedId: null,
-	loaded: false
+	loaded: false,
+	view: 'list'
 });
 
 /** Separators can never be the selected list, so fall back past them. */
@@ -41,14 +48,20 @@ export async function loadLists() {
 	listsState.loaded = true;
 }
 
-export function hydrateLists(lists: List[], selectedId: string | null) {
+export function hydrateLists(lists: List[], selectedId: string | null, view: 'list' | 'today' = 'list') {
 	listsState.items = lists;
 	listsState.selectedId = selectedId;
+	listsState.view = view;
 	listsState.loaded = true;
 }
 
 export function selectList(id: string) {
 	listsState.selectedId = id;
+	listsState.view = 'list';
+}
+
+export function selectTodayView() {
+	listsState.view = 'today';
 }
 
 export function bumpListPendingCount(id: string, delta: number) {

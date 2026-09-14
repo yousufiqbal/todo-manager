@@ -1,3 +1,4 @@
+import { SvelteMap } from 'svelte/reactivity';
 import { bumpListPendingCount } from './lists.svelte.js';
 import { todayLocalStr } from '$lib/date.js';
 
@@ -8,7 +9,19 @@ export interface Todo {
 	done: number;
 	date: string;
 	created_at: number;
+	/** Position within its (list_id, date) group — i.e. within one date card. */
+	sort_order: number;
+	/** Only present in the Today view, which spans lists and labels each card. */
+	list_name?: string;
 }
+
+/**
+ * Stands in for a list id in `loadedForListId` while the Today view is up. That
+ * view holds todos from many lists at once, so it deliberately matches no real
+ * list: `syncCache` then treats every write as "not the loaded list" and drops
+ * that list's cache entry, forcing a refetch instead of caching a cross-list mix.
+ */
+export const TODAY_VIEW_ID = '__today__';
 
 export const todosState = $state<{ items: Todo[]; loadedForListId: string | null }>({
 	items: [],
@@ -16,7 +29,9 @@ export const todosState = $state<{ items: Todo[]; loadedForListId: string | null
 });
 
 const UNDO_WINDOW_MS = 5000;
-const todosCache = new Map<string, Todo[]>();
+// Reactive so cross-list totals (the sidebar's Today count) can be derived from it
+// rather than hand-maintained through every mutation path.
+const todosCache = new SvelteMap<string, Todo[]>();
 
 export const undoState = $state<{ todo: Todo | null }>({ todo: null });
 
@@ -46,9 +61,14 @@ function syncCache(listId: string) {
 	todosCache.set(listId, $state.snapshot(todosState.items) as Todo[]);
 }
 
-/** True when `listId` is the list currently rendered, i.e. safe to mutate live state. */
+/**
+ * True when the current view renders `listId`'s todos, i.e. it's safe to mutate
+ * live state. The Today view shows every list, so it qualifies for all of them.
+ */
 function isLive(listId: string) {
-	return todosState.loadedForListId === listId;
+	return (
+		todosState.loadedForListId === listId || todosState.loadedForListId === TODAY_VIEW_ID
+	);
 }
 
 export function hydrateAllTodos(todosByList: Record<string, Todo[]>, selectedListId: string | null) {
@@ -94,9 +114,60 @@ export async function loadTodos(listId: string | null) {
 	}
 }
 
+/**
+ * Loads every list's todos for `date` into the live view. Never cached: it's a
+ * cross-list snapshot that any single-list write can invalidate, so it refetches
+ * on each visit rather than risking a stale mix.
+ */
+export async function loadTodayTodos(date: string) {
+	latestRequestedListId = TODAY_VIEW_ID;
+
+	const res = await fetch(`/api/todos/today?date=${encodeURIComponent(date)}`);
+	if (!res.ok) return;
+
+	const fresh: Todo[] = await res.json();
+	if (latestRequestedListId !== TODAY_VIEW_ID) return;
+	todosState.items = fresh;
+	todosState.loadedForListId = TODAY_VIEW_ID;
+}
+
+/**
+ * Pending todos on `date` across every list.
+ *
+ * Counted over the live view *unioned with* the cache, because neither alone is
+ * complete: the cache drops a list's entry whenever that list is written to while
+ * something else is on screen. That only happens from the Today view — which is
+ * itself holding every one of that list's todos for today — so the union always
+ * covers them. Live entries are tallied first so a just-mutated todo wins over the
+ * stale cached copy of itself.
+ */
+export function pendingCountForDate(date: string) {
+	const seen = new Set<string>();
+	let count = 0;
+
+	const tally = (todo: Todo) => {
+		if (seen.has(todo.id)) return;
+		seen.add(todo.id);
+		if (todo.date === date && !todo.done) count++;
+	};
+
+	for (const todo of todosState.items) tally(todo);
+	for (const todos of todosCache.values()) for (const todo of todos) tally(todo);
+
+	return count;
+}
+
 export function addTodo(listId: string, title: string, date: string) {
 	const tempId = `temp-${crypto.randomUUID()}`;
-	const todo: Todo = { id: tempId, list_id: listId, title, done: 0, date, created_at: Date.now() };
+	const todo: Todo = {
+		id: tempId,
+		list_id: listId,
+		title,
+		done: 0,
+		date,
+		created_at: Date.now(),
+		sort_order: 0
+	};
 	todosState.items.unshift(todo);
 	syncCache(listId);
 	bumpListPendingCount(listId, 1);
@@ -183,7 +254,53 @@ export function editTodoTitle(id: string, title: string) {
 }
 
 export function moveTodoDate(id: string, date: string) {
+	const index = todosState.items.findIndex((t) => t.id === id);
+	if (index === -1) return;
+
+	// Date cards render their todos in array order, so hoisting to the front lands
+	// this one at the top of its new card — where the server re-slots it too.
+	if (index > 0) {
+		const [todo] = todosState.items.splice(index, 1);
+		todosState.items.unshift(todo);
+	}
+
 	patchTodo(id, { date }, ['date']);
+}
+
+/**
+ * Reorders a single date card. `orderedIds` is that card's todos top to bottom;
+ * they're written back into the slots they already occupy, so every other date —
+ * and the relative order of the cards themselves — is left alone.
+ */
+export function reorderTodos(orderedIds: string[]) {
+	const ids = new Set(orderedIds);
+	const slots: number[] = [];
+	for (let i = 0; i < todosState.items.length; i++) {
+		if (ids.has(todosState.items[i].id)) slots.push(i);
+	}
+	if (slots.length !== orderedIds.length) return;
+
+	const listId = todosState.items[slots[0]].list_id;
+	const byId = new Map(todosState.items.map((t) => [t.id, t]));
+	const prevItems = $state.snapshot(todosState.items) as Todo[];
+
+	orderedIds.forEach((id, i) => {
+		todosState.items[slots[i]] = byId.get(id)!;
+	});
+	syncCache(listId);
+
+	fetch('/api/todos/reorder', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ order: orderedIds })
+	})
+		.then((res) => {
+			if (!res.ok) throw new Error('failed');
+		})
+		.catch(() => {
+			if (isLive(listId)) todosState.items = prevItems;
+			syncCache(listId);
+		});
 }
 
 /**

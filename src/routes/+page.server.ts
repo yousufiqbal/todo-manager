@@ -12,7 +12,9 @@ export const load: PageServerLoad = async ({ url }) => {
 			GROUP BY lists.id
 			ORDER BY lists.sort_order ASC
 		`),
-		db.execute('SELECT * FROM todos ORDER BY list_id ASC, date ASC, created_at DESC')
+		db.execute(
+			'SELECT * FROM todos ORDER BY list_id ASC, date ASC, sort_order ASC, created_at DESC'
+		)
 	]);
 
 	const lists = listsResult.rows as unknown as List[];
@@ -31,5 +33,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const requestedIsValid = requestedId && selectable.some((l) => l.id === requestedId);
 	const selectedListId = (requestedIsValid ? requestedId : selectable[0]?.id) ?? null;
 
-	return { lists, todosByList, selectedListId };
+	const initialView = url.searchParams.get('view') === 'today' ? 'today' : 'list';
+
+	return { lists, todosByList, selectedListId, initialView } as const;
 };
